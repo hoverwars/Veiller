@@ -1,0 +1,60 @@
+name: Android
+
+on:
+  pull_request:
+    paths:
+      - "src/mobile/**"
+      - ".github/workflows/android.yml"
+  push:
+    branches: ["dev", "main"]
+    paths:
+      - "src/mobile/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un push nuevo a la misma rama o PR cancela la ejecución anterior.
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    name: Test and build Android app
+    defaults:
+      run:
+        working-directory: ./src/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-reports
+          path: ./src/mobile/app/build/reports/tests/
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: veiller-debug-${{ github.sha }}
+          path: ./src/mobile/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
