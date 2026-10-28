@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Logo de Veiller: anillo punteado con un pulso cardíaco -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M54,30a24,24 0 1,1 0,48a24,24 0 1,1 0,-48"
+        android:strokeWidth="2"
+        android:strokeColor="#8FC9C9"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M38,55h8l4,-9l7,18l4,-9h9"
+        android:strokeWidth="4"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>
