@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.veiller.app.core.model.Role
@@ -14,26 +15,37 @@ import kotlinx.coroutines.flow.map
 
 private val Context.sessionDataStore by preferencesDataStore(name = "session")
 
-/** Persiste la sesión actual y la última cuenta registrada (solo para el modo sin backend). */
+/** Tokens de Firebase devueltos por la API. [expiresAtMs] es la hora de expiración del idToken. */
+data class AuthTokens(val idToken: String, val refreshToken: String, val expiresAtMs: Long)
+
+/** Persiste la sesión actual (usuario y tokens) para reabrir la app sin volver a iniciar sesión. */
 class SessionStore(private val context: Context) {
 
     val session: Flow<Session?> = context.sessionDataStore.data.map { prefs ->
-        prefs.readUser(SESSION_PREFIX)?.let { user ->
+        prefs.readUser()?.let { user ->
             Session(user, prefs[ONBOARDING_COMPLETED] ?: false)
         }
     }
 
-    val registeredUser: Flow<User?> = context.sessionDataStore.data.map { it.readUser(REGISTERED_PREFIX) }
+    val tokens: Flow<AuthTokens?> = context.sessionDataStore.data.map { prefs ->
+        val idToken = prefs[ID_TOKEN] ?: return@map null
+        val refreshToken = prefs[REFRESH_TOKEN] ?: return@map null
+        AuthTokens(idToken, refreshToken, prefs[EXPIRES_AT] ?: 0L)
+    }
 
-    suspend fun saveSession(user: User, onboardingCompleted: Boolean) {
+    suspend fun saveSession(user: User, onboardingCompleted: Boolean, tokens: AuthTokens) {
         context.sessionDataStore.edit { prefs ->
-            prefs.writeUser(SESSION_PREFIX, user)
+            prefs[USER_PREFIX + "id"] = user.id
+            prefs[USER_PREFIX + "name"] = user.fullName
+            prefs[USER_PREFIX + "email"] = user.email
+            prefs[USER_PREFIX + "role"] = user.role.name
             prefs[ONBOARDING_COMPLETED] = onboardingCompleted
+            prefs.writeTokens(tokens)
         }
     }
 
-    suspend fun saveRegisteredUser(user: User) {
-        context.sessionDataStore.edit { it.writeUser(REGISTERED_PREFIX, user) }
+    suspend fun saveTokens(tokens: AuthTokens) {
+        context.sessionDataStore.edit { it.writeTokens(tokens) }
     }
 
     suspend fun setOnboardingCompleted() {
@@ -41,33 +53,36 @@ class SessionStore(private val context: Context) {
     }
 
     suspend fun clearSession() {
-        context.sessionDataStore.edit { prefs ->
-            USER_FIELDS.forEach { prefs.remove(stringPreferencesKey(SESSION_PREFIX + it)) }
-            prefs.remove(ONBOARDING_COMPLETED)
-        }
+        context.sessionDataStore.edit { it.clear() }
     }
 
-    private fun Preferences.readUser(prefix: String): User? {
-        val id = this[stringPreferencesKey(prefix + "id")] ?: return null
+    private fun androidx.datastore.preferences.core.MutablePreferences.writeTokens(tokens: AuthTokens) {
+        this[ID_TOKEN] = tokens.idToken
+        this[REFRESH_TOKEN] = tokens.refreshToken
+        this[EXPIRES_AT] = tokens.expiresAtMs
+    }
+
+    private fun Preferences.readUser(): User? {
+        val id = this[USER_PREFIX + "id"] ?: return null
         return User(
             id = id,
-            fullName = this[stringPreferencesKey(prefix + "name")].orEmpty(),
-            email = this[stringPreferencesKey(prefix + "email")].orEmpty(),
-            role = Role.valueOf(this[stringPreferencesKey(prefix + "role")] ?: Role.CAREGIVER.name),
+            fullName = this[USER_PREFIX + "name"].orEmpty(),
+            email = this[USER_PREFIX + "email"].orEmpty(),
+            role = Role.valueOf(this[USER_PREFIX + "role"] ?: Role.CAREGIVER.name),
         )
     }
 
-    private fun androidx.datastore.preferences.core.MutablePreferences.writeUser(prefix: String, user: User) {
-        this[stringPreferencesKey(prefix + "id")] = user.id
-        this[stringPreferencesKey(prefix + "name")] = user.fullName
-        this[stringPreferencesKey(prefix + "email")] = user.email
-        this[stringPreferencesKey(prefix + "role")] = user.role.name
+    private operator fun Preferences.get(name: String): String? = this[stringPreferencesKey(name)]
+
+    private operator fun androidx.datastore.preferences.core.MutablePreferences.set(name: String, value: String) {
+        this[stringPreferencesKey(name)] = value
     }
 
     private companion object {
-        const val SESSION_PREFIX = "session_"
-        const val REGISTERED_PREFIX = "registered_"
-        val USER_FIELDS = listOf("id", "name", "email", "role")
+        const val USER_PREFIX = "session_"
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        val ID_TOKEN = stringPreferencesKey("id_token")
+        val REFRESH_TOKEN = stringPreferencesKey("refresh_token")
+        val EXPIRES_AT = longPreferencesKey("expires_at_ms")
     }
 }
