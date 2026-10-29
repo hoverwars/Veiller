@@ -2,3 +2,8 @@ bin/
 obj/
 .vs/
 *.user
+
+# Firebase service accounts
+firebase-sa*.json
+*.serviceaccount.json
+infra/.env
