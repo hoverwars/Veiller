@@ -1,7 +1,9 @@
 # Run the Android app
 
-The Android app lives in `src/mobile/`. It does not call the backend yet: every
-screen reads simulated data from `data/fake/`.
+The Android app lives in `src/mobile/`. Authentication (register, login, session
+refresh, logout) calls the dev backend at `https://veiller-dev.adrien-roho.fr/api/`
+(`API_BASE_URL` in `app/build.gradle.kts`). The other screens (circles, patients,
+consents, elder home) still read simulated data from `data/fake/`.
 
 ## Prerequisites
 
@@ -24,17 +26,15 @@ cd src/mobile
 ./gradlew installDebug         # install on the connected phone
 ```
 
-## Demo accounts
+## Accounts
 
-Without a backend, login accepts any 8+ character password for:
+The demo accounts no longer exist: create one from the app (Register). It is created
+in the Firebase project behind the dev API, so it needs an internet connection and a
+password of 8+ characters.
 
-| Email              | Role          |
-|--------------------|---------------|
-| laura@correo.com   | Caregiver     |
-| rosa@correo.com    | Older adult   |
-
-Registering a new account also works and is kept on the device.
-The circle code from the mockups, `VLR-7K2Q`, finds Rosa's circle.
+The circle code from the mockups, `VLR-7K2Q`, still finds Rosa's circle (simulated data).
+Circle screens do not recognize the real signed-in user as admin or member yet,
+because they still use simulated members.
 
 ## CI
 

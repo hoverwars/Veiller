@@ -78,3 +78,5 @@ internal object FakeData {
         ELENA_CIRCLE to Vitals(null, null, null, null, null, 180),
     )
 }
+
+internal const val NETWORK_DELAY_MS = 400L
