@@ -62,7 +62,14 @@ jobs:
           cat > ./infra/.env <<EOF
           CR_URL=${{ vars.CR_URL }}
           VEILLER_DOMAIN=${{ vars.VEILLER_DOMAIN }}
+          FIREBASE_PROJECT_ID=${{ vars.FIREBASE_PROJECT_ID }}
+          FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY }}
           EOF
+
+      - name: Generate Firebase service account file
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > ./infra/firebase-sa.json
 
       - name: Create remote application directory
         uses: appleboy/ssh-action@v1.2.0
@@ -78,7 +85,7 @@ jobs:
           host: ${{ vars.VM_HOST }}
           username: ${{ vars.VM_USER }}
           key: ${{ secrets.VM_KEY }}
-          source: infra/.env,infra/compose.yml,infra/Caddyfile
+          source: infra/.env,infra/firebase-sa.json,infra/compose.yml,infra/Caddyfile
           target: app
           strip_components: 1
           overwrite: true
@@ -92,7 +99,7 @@ jobs:
           script: |
             set -e
             cd app
-            chmod 600 .env
+            chmod 600 .env firebase-sa.json
             printf '%s\n' '${{ secrets.CR_PASSWORD }}' | docker login --username '${{ secrets.CR_USER }}' --password-stdin '${{ vars.CR_URL }}'
             docker compose pull
             docker compose up -d
