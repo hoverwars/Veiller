@@ -1,0 +1,98 @@
+name: Deploy
+
+on:
+  push:
+    branches: ["dev", "feat/deploy_backend"]
+    paths:
+      - "src/back/**"
+      - "infra/**"
+      - ".github/workflows/deploy.yml"
+      - ".github/workflows/build.yml"
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+
+  docker-publish-api:
+    needs:
+      - build
+    environment:
+      name: Development
+    runs-on: ubuntu-latest
+    name: Build and Publish docker image of the API
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log to Docker registry
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          registry: ${{ vars.CR_URL }}
+          username: ${{ secrets.CR_USER }}
+          password: ${{ secrets.CR_PASSWORD }}
+
+      - name: Download NET API build
+        uses: actions/download-artifact@v4
+        with:
+          name: build-net-api
+          path: ./src/back/Veiller.Api/bin/Release/net10.0/publish/
+
+      - name: Build the API Docker image
+        run: |
+          docker build . --file ./src/back/Veiller.Api/Dockerfile \
+            --tag ${{ vars.CR_URL }}/veiller/api:${{ github.sha }} \
+            --tag ${{ vars.CR_URL }}/veiller/api:latest
+
+      - name: Push the API Docker image
+        run: |
+          docker push ${{ vars.CR_URL }}/veiller/api:${{ github.sha }}
+          docker push ${{ vars.CR_URL }}/veiller/api:latest
+
+  start-app:
+    needs:
+      - docker-publish-api
+    environment:
+      name: Development
+    runs-on: ubuntu-latest
+    name: Start application on the server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate environment file
+        run: |
+          cat > ./infra/.env <<EOF
+          CR_URL=${{ vars.CR_URL }}
+          VEILLER_DOMAIN=${{ vars.VEILLER_DOMAIN }}
+          EOF
+
+      - name: Create remote application directory
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ vars.VM_HOST }}
+          username: ${{ vars.VM_USER }}
+          key: ${{ secrets.VM_KEY }}
+          script: mkdir -p app
+
+      - name: Upload deployment files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ vars.VM_HOST }}
+          username: ${{ vars.VM_USER }}
+          key: ${{ secrets.VM_KEY }}
+          source: infra/.env,infra/compose.yml,infra/Caddyfile
+          target: app
+          strip_components: 1
+          overwrite: true
+
+      - name: Deploy application
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ vars.VM_HOST }}
+          username: ${{ vars.VM_USER }}
+          key: ${{ secrets.VM_KEY }}
+          script: |
+            set -e
+            cd app
+            chmod 600 .env
+            printf '%s\n' '${{ secrets.CR_PASSWORD }}' | docker login --username '${{ secrets.CR_USER }}' --password-stdin '${{ vars.CR_URL }}'
+            docker compose pull
+            docker compose up -d

@@ -1,0 +1,29 @@
+name: Build
+
+on:
+  workflow_call:
+
+jobs:
+  build-api:
+    runs-on: ubuntu-latest
+    name: Build .NET API
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore .NET dependencies
+        working-directory: ./src/back/Veiller.Api
+        run: dotnet restore
+
+      - name: .NET Publish
+        working-directory: ./src/back/Veiller.Api
+        run: dotnet publish -c Release --no-restore
+
+      - name: Upload NET build
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-net-api
+          path: ./src/back/Veiller.Api/bin/Release/net10.0/publish/
