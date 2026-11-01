@@ -27,6 +27,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
@@ -40,7 +41,12 @@ import com.veiller.app.core.model.ConsentItem
 import com.veiller.app.core.model.HealthDataType
 import com.veiller.app.core.ui.veillerViewModel
 import com.veiller.app.core.validation.ConsentRules
+import com.veiller.app.data.health.HealthAvailability
 import com.veiller.app.data.repository.ConsentRepository
+import com.veiller.app.data.repository.HealthRepository
+import com.veiller.app.feature.health.HealthAvailabilityBanner
+import com.veiller.app.feature.health.MissingHealthAccessBanner
+import com.veiller.app.feature.health.rememberHealthPermissionRequest
 import com.veiller.app.navigation.ConsentRoute
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -65,16 +71,25 @@ data class ConsentUiState(
     val disclaimerAccepted: Boolean = false,
     val saving: Boolean = false,
     val done: Boolean = false,
+    val healthAvailability: HealthAvailability = HealthAvailability.AVAILABLE,
+    /** Permisos de Health Connect por pedir: la UI abre el diálogo y avisa con onPermissionRequestShown. */
+    val permissionRequest: Set<String>? = null,
+    /** Obligatorios que el usuario no concedió en Health Connect: bloquean el avance. */
+    val missingHealth: Set<HealthDataType> = emptySet(),
 ) {
     val canSubmit: Boolean
-        get() = !saving && when (mode) {
+        get() = !saving && healthAvailability == HealthAvailability.AVAILABLE && when (mode) {
             ConsentMode.ONBOARDING -> ConsentRules.canAccept(items, disclaimerAccepted)
             ConsentMode.EDIT -> true
             ConsentMode.READ_ONLY -> false
         }
 }
 
-class ConsentViewModel(handle: SavedStateHandle, private val repository: ConsentRepository) : ViewModel() {
+class ConsentViewModel(
+    handle: SavedStateHandle,
+    private val repository: ConsentRepository,
+    private val health: HealthRepository,
+) : ViewModel() {
     private val route = handle.toRoute<ConsentRoute>()
     private val _state = MutableStateFlow(ConsentUiState(mode = ConsentMode.valueOf(route.mode)))
     val state: StateFlow<ConsentUiState> = _state
@@ -86,6 +101,12 @@ class ConsentViewModel(handle: SavedStateHandle, private val repository: Consent
         }
     }
 
+    /** Health Connect se puede instalar mientras la pantalla está abierta: se revisa al volver. */
+    fun checkAvailability() {
+        if (_state.value.mode == ConsentMode.READ_ONLY) return
+        _state.update { it.copy(healthAvailability = health.availability()) }
+    }
+
     fun onToggle(type: HealthDataType, granted: Boolean) {
         if (type.required || _state.value.mode == ConsentMode.READ_ONLY) return
         _state.update { s -> s.copy(items = s.items.map { if (it.type == type) it.copy(granted = granted) else it }) }
@@ -95,19 +116,55 @@ class ConsentViewModel(handle: SavedStateHandle, private val repository: Consent
 
     fun submit() {
         if (!_state.value.canSubmit) return
-        _state.update { it.copy(saving = true) }
+        _state.update { it.copy(saving = true, missingHealth = emptySet()) }
         viewModelScope.launch {
-            repository.saveConsents(_state.value.items)
-            _state.update { it.copy(saving = false, done = true) }
+            val types = ConsentRules.enabledTypes(_state.value.items)
+            if (health.missingPermissions(types).isEmpty()) {
+                save(missing = emptySet())
+            } else {
+                _state.update { it.copy(permissionRequest = health.permissionsFor(types)) }
+            }
         }
+    }
+
+    fun onPermissionRequestShown() = _state.update { it.copy(permissionRequest = null) }
+
+    /** Se recalcula desde Health Connect: el usuario pudo conceder solo una parte. */
+    fun onPermissionResult() {
+        viewModelScope.launch {
+            val missing = health.missingPermissions(ConsentRules.enabledTypes(_state.value.items))
+            val blocking = ConsentRules.missingRequired(missing)
+            if (blocking.isEmpty()) {
+                save(missing)
+            } else {
+                _state.update { it.copy(saving = false, missingHealth = blocking) }
+            }
+        }
+    }
+
+    private suspend fun save(missing: Set<HealthDataType>) {
+        val items = ConsentRules.applyHealthGrants(_state.value.items, missing)
+        repository.saveConsents(items)
+        _state.update { it.copy(items = items, saving = false, done = true) }
     }
 }
 
 /** A3 · Tus datos, tu decisión (y sus variantes de edición y solo lectura). */
 @Composable
 fun ConsentScreen(onBack: (() -> Unit)?, onDone: () -> Unit) {
-    val viewModel = veillerViewModel { c, handle -> ConsentViewModel(handle, c.consentRepository) }
+    val viewModel = veillerViewModel { c, handle -> ConsentViewModel(handle, c.consentRepository, c.healthRepository) }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val requestHealthPermissions = rememberHealthPermissionRequest(onResult = viewModel::onPermissionResult)
+    LifecycleResumeEffect(Unit) {
+        viewModel.checkAvailability()
+        onPauseOrDispose { }
+    }
+    LaunchedEffect(state.permissionRequest) {
+        state.permissionRequest?.let {
+            viewModel.onPermissionRequestShown()
+            requestHealthPermissions(it)
+        }
+    }
     LaunchedEffect(state.done) {
         if (state.done) onDone()
     }
@@ -131,7 +188,8 @@ fun ConsentContent(
         ConsentMode.READ_ONLY ->
             "Estos son los datos que la persona titular comparte con su círculo. Solo ella puede cambiarlos."
         else ->
-            "Veiller compartirá estos datos solo con los cuidadores que tú apruebes. Puedes retirar el permiso cuando quieras."
+            "Veiller compartirá estos datos solo con los cuidadores que tú apruebes. Puedes retirar el permiso cuando quieras. " +
+                "Al continuar, Health Connect te pedirá permiso para leer los datos de tu reloj."
     }
     VeillerScreen(
         title = title,
@@ -153,6 +211,19 @@ fun ConsentContent(
         }
         Text(intro, style = MaterialTheme.typography.bodyMedium, color = VeillerColors.TextSecondary)
         Spacer(Modifier.height(16.dp))
+        if (state.mode != ConsentMode.READ_ONLY && state.healthAvailability != HealthAvailability.AVAILABLE) {
+            HealthAvailabilityBanner(state.healthAvailability)
+            Spacer(Modifier.height(16.dp))
+        }
+        if (state.missingHealth.isNotEmpty()) {
+            MissingHealthAccessBanner(
+                missing = state.missingHealth,
+                onGrant = onSubmit,
+                title = "Falta el acceso en Health Connect",
+                grantLabel = "Reintentar",
+            )
+            Spacer(Modifier.height(16.dp))
+        }
         if (state.loading) {
             CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
             return@VeillerScreen

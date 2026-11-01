@@ -1,6 +1,7 @@
 package com.veiller.app.core.validation
 
 import com.veiller.app.core.model.ConsentItem
+import com.veiller.app.core.model.HealthDataType
 
 object FormValidators {
     private val EmailRegex = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$")
@@ -39,4 +40,19 @@ object CircleCode {
 object ConsentRules {
     fun canAccept(items: List<ConsentItem>, disclaimerAccepted: Boolean): Boolean =
         disclaimerAccepted && items.filter { it.type.required }.all { it.granted }
+
+    /** Tipos activados en el consentimiento: son los que se piden en Health Connect. */
+    fun enabledTypes(items: List<ConsentItem>): Set<HealthDataType> =
+        items.filter { it.granted }.mapTo(mutableSetOf()) { it.type }
+
+    /**
+     * Tras pedir los permisos de Health Connect: los opcionales no concedidos se apagan
+     * en el consentimiento, porque Veiller no podría leerlos ni compartirlos.
+     */
+    fun applyHealthGrants(items: List<ConsentItem>, missing: Set<HealthDataType>): List<ConsentItem> =
+        items.map { if (!it.type.required && it.type in missing) it.copy(granted = false) else it }
+
+    /** Con algún obligatorio sin permiso de Health Connect no se puede avanzar. */
+    fun missingRequired(missing: Set<HealthDataType>): Set<HealthDataType> =
+        missing.filterTo(mutableSetOf()) { it.required }
 }

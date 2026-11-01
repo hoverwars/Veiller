@@ -114,6 +114,7 @@ enum class HealthDataType(val label: String, val required: Boolean) {
     HEART_RATE("Ritmo cardíaco", true),
     LOCATION("Ubicación", true),
     SLEEP("Sueño", true),
+    STEPS("Pasos", true),
     SCREEN_TIME("Tiempo en pantalla", true),
     BLOOD_PRESSURE("Presión arterial", false),
     SPO2("Oxigenación (SpO₂)", false),
@@ -125,14 +126,11 @@ data class ConsentItem(
     val granted: Boolean,
 )
 
-data class WatchStatus(
-    val connected: Boolean,
-    val batteryPercent: Int?,
-)
-
+/**
+ * Datos del círculo para el home del adulto mayor. Los de salud vienen de
+ * HealthRepository: el estado del reloj (batería, conexión) no se puede leer.
+ */
 data class ElderHome(
-    val lastSendMinutesAgo: Int,
-    val watch: WatchStatus,
     val caregivers: List<CircleMember>,
 )
 
