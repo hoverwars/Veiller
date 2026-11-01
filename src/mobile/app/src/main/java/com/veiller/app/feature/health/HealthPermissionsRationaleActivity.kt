@@ -29,13 +29,14 @@ class HealthPermissionsRationaleActivity : ComponentActivity() {
                 VeillerScreen(title = "Tus datos de salud en Veiller", onBack = ::finish) {
                     RationaleParagraph(
                         "Qué leemos",
-                        "Tu ritmo cardíaco, tus pasos y tu sueño, desde Health Connect. " +
+                        "Tu ritmo cardíaco, tus pasos, tus calorías activas y tu sueño, desde Health Connect. " +
                             "Los escribe la app de tu reloj (por ejemplo, Mi Fitness).",
                     )
                     RationaleParagraph(
                         "Para qué",
                         "Para mostrártelos y compartirlos solo con los cuidadores que tú apruebes en tu círculo. " +
-                            "Para eso se enviarán a los servidores de Veiller.",
+                            "Para eso se enviarán a los servidores de Veiller. Las calorías activas solo se usan " +
+                            "para saber si tu reloj sigue enviando datos.",
                     )
                     RationaleParagraph(
                         "Cómo retirarlo",

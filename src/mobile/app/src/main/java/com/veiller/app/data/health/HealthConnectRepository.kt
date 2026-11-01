@@ -1,6 +1,7 @@
 package com.veiller.app.data.health
 
 import android.os.RemoteException
+import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
@@ -8,6 +9,7 @@ import com.veiller.app.core.model.HealthDataType
 import com.veiller.app.data.repository.HealthRepository
 import java.io.IOException
 import java.time.Clock
+import java.time.Instant
 import java.time.LocalDate
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -30,7 +32,14 @@ class HealthConnectRepository(
         val now = clock.instant()
         val granted = if (availability() == HealthAvailability.AVAILABLE) grantedOrNull() else null
         if (granted == null) {
-            return HealthSnapshot(HealthMetric.ReadFailed, HealthMetric.ReadFailed, HealthMetric.ReadFailed, now)
+            return HealthSnapshot(
+                heartRate = HealthMetric.ReadFailed,
+                steps = HealthMetric.ReadFailed,
+                sleep = HealthMetric.ReadFailed,
+                lastWatchDataAt = null,
+                missing = emptySet(),
+                readAt = now,
+            )
         }
         fun permitted(type: HealthDataType) = granted.containsAll(HealthPermissions.forType(type))
 
@@ -49,8 +58,42 @@ class HealthConnectRepository(
                 val records = gateway.latestRecords(SleepSessionRecord::class, now.minus(HealthConfig.SLEEP_LOOKBACK), now)
                 HealthRecordMappers.latestSleep(records)
             },
+            lastWatchDataAt = readWatchLiveness(::permitted, now),
+            missing = HealthPermissions.missing(HealthDataType.entries, granted),
             readAt = now,
         )
+    }
+
+    /**
+     * Fin del registro más reciente de los tipos de la señal de vida escrito por la app del
+     * reloj. Un tipo sin permiso o que falla no cuenta; los demás sí.
+     */
+    private suspend fun readWatchLiveness(permitted: (HealthDataType) -> Boolean, now: Instant): Instant? {
+        val start = now.minus(HealthConfig.WATCH_LIVENESS_LOOKBACK)
+        return HealthConfig.WATCH_LIVENESS_TYPES.mapNotNull { type ->
+            val latest = readMetric(permitted(type)) { latestWatchRecordEnd(type, start, now) }
+            (latest as? HealthMetric.Value)?.reading
+        }.maxOrNull()
+    }
+
+    private suspend fun latestWatchRecordEnd(type: HealthDataType, start: Instant, now: Instant): Instant? {
+        val watch = HealthConfig.WATCH_APP_PACKAGES
+        return when (type) {
+            HealthDataType.HEART_RATE ->
+                HealthRecordMappers.latestEndFrom(gateway.latestRecords(HeartRateRecord::class, start, now), watch) { it.endTime }
+            HealthDataType.STEPS ->
+                HealthRecordMappers.latestEndFrom(gateway.latestRecords(StepsRecord::class, start, now), watch) { it.endTime }
+            HealthDataType.ACTIVE_CALORIES ->
+                HealthRecordMappers.latestEndFrom(gateway.latestRecords(ActiveCaloriesBurnedRecord::class, start, now), watch) { it.endTime }
+            HealthDataType.SLEEP ->
+                HealthRecordMappers.latestEndFrom(gateway.latestRecords(SleepSessionRecord::class, start, now), watch) { it.endTime }
+            HealthDataType.LOCATION,
+            HealthDataType.SCREEN_TIME,
+            HealthDataType.BLOOD_PRESSURE,
+            HealthDataType.SPO2,
+            HealthDataType.ECG,
+            -> null
+        }
     }
 
     private suspend fun grantedOrNull(): Set<String>? = try {

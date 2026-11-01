@@ -1,8 +1,8 @@
 package com.veiller.app.data.health
 
+import com.veiller.app.core.model.HealthDataType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
@@ -11,55 +11,47 @@ class HealthReadingsTest {
     private val now = Instant.parse("2026-11-01T22:30:00Z")
     private val source = "com.example.reloj"
 
-    @Test fun `FC vieja queda desactualizada`() {
-        assertFalse(HeartRateReading(70, now.minus(HealthConfig.HEART_RATE_STALE_AFTER), source).isStale(now))
-        assertTrue(HeartRateReading(70, now.minus(HealthConfig.HEART_RATE_STALE_AFTER).minusSeconds(1), source).isStale(now))
+    private fun snapshot(lastWatchDataAt: Instant?, heartRateAt: Instant? = null) = HealthSnapshot(
+        heartRate = heartRateAt?.let { HealthMetric.Value(HeartRateReading(70, it, source)) } ?: HealthMetric.NoData,
+        steps = HealthMetric.NoData,
+        sleep = HealthMetric.NoData,
+        lastWatchDataAt = lastWatchDataAt,
+        missing = emptySet(),
+        readAt = now,
+    )
+
+    @Test fun `FC vieja se rotula como última medición`() {
+        assertFalse(HeartRateReading(70, now.minus(HealthConfig.HEART_RATE_STALE_AFTER), source).isOld(now))
+        assertTrue(HeartRateReading(70, now.minus(HealthConfig.HEART_RATE_STALE_AFTER).minusSeconds(1), source).isOld(now))
     }
 
     @Test fun `sueño usa su propio umbral`() {
         val end = now.minus(HealthConfig.HEART_RATE_STALE_AFTER).minusSeconds(1)
-        assertFalse(SleepReading(end.minusSeconds(3600), end, source).isStale(now))
+        assertFalse(SleepReading(end.minusSeconds(3600), end, source).isOld(now))
         val old = now.minus(HealthConfig.SLEEP_STALE_AFTER).minusSeconds(1)
-        assertTrue(SleepReading(old.minusSeconds(3600), old, source).isStale(now))
+        assertTrue(SleepReading(old.minusSeconds(3600), old, source).isOld(now))
     }
 
-    @Test fun `solo la FC decide si los datos del reloj están desactualizados`() {
-        val heart = now.minusSeconds(3 * 3600)
-        val steps = now.minusSeconds(60)
-        val snapshot = HealthSnapshot(
-            heartRate = HealthMetric.Value(HeartRateReading(70, heart, source)),
-            steps = HealthMetric.Value(StepsReading(100, steps, setOf(source))),
-            sleep = HealthMetric.NoData,
-            readAt = now,
+    @Test fun `la señal de vida cuenta FC, pasos y calorías activas`() {
+        assertEquals(
+            setOf(HealthDataType.HEART_RATE, HealthDataType.STEPS, HealthDataType.ACTIVE_CALORIES),
+            HealthConfig.WATCH_LIVENESS_TYPES,
         )
-        assertEquals(heart, snapshot.lastWatchDataAt)
-        assertTrue(snapshot.isWatchDataStale)
     }
 
-    @Test fun `pasos viejos no generan alarma si la FC está al día`() {
-        val snapshot = HealthSnapshot(
-            heartRate = HealthMetric.Value(HeartRateReading(70, now.minusSeconds(60), source)),
-            steps = HealthMetric.Value(StepsReading(100, now.minusSeconds(8 * 3600), setOf(source))),
-            sleep = HealthMetric.NoData,
-            readAt = now,
-        )
-        assertFalse(snapshot.isWatchDataStale)
+    @Test fun `señal de vida dentro del umbral está al día`() {
+        assertFalse(snapshot(now.minus(HealthConfig.WATCH_LIVENESS_STALE_AFTER)).isWatchDataStale)
+        assertTrue(snapshot(now.minus(HealthConfig.WATCH_LIVENESS_STALE_AFTER).minusSeconds(1)).isWatchDataStale)
     }
 
-    @Test fun `sin FC se considera desactualizado aunque haya pasos`() {
-        val snapshot = HealthSnapshot(
-            heartRate = HealthMetric.NoData,
-            steps = HealthMetric.Value(StepsReading(100, now.minusSeconds(60), setOf(source))),
-            sleep = HealthMetric.NoData,
-            readAt = now,
-        )
-        assertNull(snapshot.lastWatchDataAt)
-        assertTrue(snapshot.isWatchDataStale)
+    @Test fun `FC vieja no marca el reloj como sin datos si la señal de vida es reciente`() {
+        // Caso del S25: FC de un entrenamiento hace 9 h, calorías activas del reloj hace 20 min.
+        val s = snapshot(lastWatchDataAt = now.minusSeconds(20 * 60), heartRateAt = now.minusSeconds(9 * 3600))
+        assertFalse(s.isWatchDataStale)
+        assertTrue((s.heartRate as HealthMetric.Value).reading.isOld(now))
     }
 
-    @Test fun `sin datos del reloj se considera desactualizado`() {
-        val snapshot = HealthSnapshot(HealthMetric.NotPermitted, HealthMetric.NoData, HealthMetric.ReadFailed, now)
-        assertNull(snapshot.lastWatchDataAt)
-        assertTrue(snapshot.isWatchDataStale)
+    @Test fun `sin señal de vida se considera sin datos recientes`() {
+        assertTrue(snapshot(lastWatchDataAt = null, heartRateAt = now).isWatchDataStale)
     }
 }

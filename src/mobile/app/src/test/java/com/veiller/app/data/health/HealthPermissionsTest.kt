@@ -9,11 +9,18 @@ class HealthPermissionsTest {
     private val heartRate = "android.permission.health.READ_HEART_RATE"
     private val steps = "android.permission.health.READ_STEPS"
     private val sleep = "android.permission.health.READ_SLEEP"
+    private val activeCalories = "android.permission.health.READ_ACTIVE_CALORIES_BURNED"
+    private val all = setOf(heartRate, steps, sleep, activeCalories)
 
-    @Test fun `los tipos de F1 piden su permiso de lectura`() {
+    @Test fun `cada tipo leído pide su permiso de lectura`() {
         assertEquals(setOf(heartRate), HealthPermissions.forType(HealthDataType.HEART_RATE))
         assertEquals(setOf(steps), HealthPermissions.forType(HealthDataType.STEPS))
         assertEquals(setOf(sleep), HealthPermissions.forType(HealthDataType.SLEEP))
+        assertEquals(setOf(activeCalories), HealthPermissions.forType(HealthDataType.ACTIVE_CALORIES))
+    }
+
+    @Test fun `calorías activas es obligatorio`() {
+        assertTrue(HealthDataType.ACTIVE_CALORIES.required)
     }
 
     @Test fun `los tipos que no vienen de Health Connect no piden nada`() {
@@ -23,15 +30,19 @@ class HealthPermissionsTest {
     }
 
     @Test fun `todos los obligatorios de Health Connect quedan cubiertos`() {
-        assertEquals(setOf(heartRate, steps, sleep), HealthPermissions.forTypes(HealthDataType.entries))
+        assertEquals(all, HealthPermissions.forTypes(HealthDataType.entries))
+    }
+
+    @Test fun `los tipos de la señal de vida se pueden leer por Health Connect`() {
+        HealthConfig.WATCH_LIVENESS_TYPES.forEach { assertTrue(HealthPermissions.recordType(it) != null) }
     }
 
     @Test fun `detecta los permisos que faltan tras una concesión parcial`() {
         val missing = HealthPermissions.missing(HealthDataType.entries, granted = setOf(heartRate))
-        assertEquals(setOf(HealthDataType.STEPS, HealthDataType.SLEEP), missing)
+        assertEquals(setOf(HealthDataType.STEPS, HealthDataType.SLEEP, HealthDataType.ACTIVE_CALORIES), missing)
     }
 
     @Test fun `nada falta si todo está concedido`() {
-        assertTrue(HealthPermissions.missing(HealthDataType.entries, setOf(heartRate, steps, sleep)).isEmpty())
+        assertTrue(HealthPermissions.missing(HealthDataType.entries, all).isEmpty())
     }
 }

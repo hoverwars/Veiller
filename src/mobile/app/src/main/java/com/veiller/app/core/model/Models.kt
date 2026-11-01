@@ -115,6 +115,9 @@ enum class HealthDataType(val label: String, val required: Boolean) {
     LOCATION("Ubicación", true),
     SLEEP("Sueño", true),
     STEPS("Pasos", true),
+
+    /** Solo indica si el reloj sigue enviando datos (señal de vida); no se muestra ni se sube. */
+    ACTIVE_CALORIES("Calorías activas", true),
     SCREEN_TIME("Tiempo en pantalla", true),
     BLOOD_PRESSURE("Presión arterial", false),
     SPO2("Oxigenación (SpO₂)", false),

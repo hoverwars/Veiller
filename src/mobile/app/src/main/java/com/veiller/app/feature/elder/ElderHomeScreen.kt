@@ -44,12 +44,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import com.veiller.app.core.designsystem.component.ChipTone
 import com.veiller.app.core.designsystem.component.InitialsAvatar
 import com.veiller.app.core.designsystem.component.LinkButton
 import com.veiller.app.core.designsystem.component.MetricCard
 import com.veiller.app.core.designsystem.component.SectionHeader
-import com.veiller.app.core.designsystem.component.StatusChip
 import com.veiller.app.core.designsystem.component.VeillerCard
 import com.veiller.app.core.designsystem.component.VeillerScreen
 import com.veiller.app.core.designsystem.icon.VeillerIcons
@@ -96,14 +94,7 @@ data class ElderHomeUiState(
 ) {
     /** Tipos sin permiso según la última lectura (p. ej. un elder que inició sesión en un teléfono nuevo). */
     val missingHealth: Set<HealthDataType>
-        get() {
-            val health = health ?: return emptySet()
-            return buildSet {
-                if (health.heartRate == HealthMetric.NotPermitted) add(HealthDataType.HEART_RATE)
-                if (health.steps == HealthMetric.NotPermitted) add(HealthDataType.STEPS)
-                if (health.sleep == HealthMetric.NotPermitted) add(HealthDataType.SLEEP)
-            }
-        }
+        get() = health?.missing.orEmpty()
 }
 
 class ElderHomeViewModel(
@@ -307,11 +298,12 @@ private fun TodayHealthSection(health: HealthSnapshot, onRefresh: () -> Unit, on
             noDataText = "Aún no hay datos de ritmo cardíaco. Revisa que el monitoreo continuo esté activo en el reloj.",
             onGrant = { onGrant(HealthDataType.HEART_RATE) },
         ) { reading: HeartRateReading ->
+            val measured = Format.measuredAt(reading.measuredAt, now, zone)
             MetricValue(
                 value = reading.beatsPerMinute.toString(),
                 unit = "lpm",
-                caption = "Medido ${Format.measuredAt(reading.measuredAt, now, zone)}",
-                stale = reading.isStale(now),
+                // Una FC vieja (p. ej. solo de un entrenamiento) no significa que el reloj esté apagado.
+                caption = if (reading.isOld(now)) "Última medición registrada: $measured" else "Medido $measured",
             )
         }
         HealthMetricCard(
@@ -324,7 +316,6 @@ private fun TodayHealthSection(health: HealthSnapshot, onRefresh: () -> Unit, on
                 value = Format.count(reading.count),
                 unit = "pasos",
                 caption = reading.lastRecordAt?.let { "Último registro ${Format.measuredAt(it, now, zone)}" } ?: "Hoy",
-                stale = false,
             )
         }
         HealthMetricCard(
@@ -333,17 +324,21 @@ private fun TodayHealthSection(health: HealthSnapshot, onRefresh: () -> Unit, on
             noDataText = "Aún no hay datos de sueño. Usa el reloj al dormir.",
             onGrant = { onGrant(HealthDataType.SLEEP) },
         ) { reading: SleepReading ->
+            val end = Format.measuredAt(reading.end, now, zone)
             MetricValue(
                 value = Format.sleep(reading.duration.toMinutes().toInt()),
                 unit = null,
-                caption = "Te despertaste ${Format.measuredAt(reading.end, now, zone)}",
-                stale = reading.isStale(now),
+                caption = if (reading.isOld(now)) "Última sesión registrada: terminó $end" else "Te despertaste $end",
             )
         }
     }
 }
 
-private data class MetricValue(val value: String, val unit: String?, val caption: String, val stale: Boolean)
+/**
+ * Las tarjetas no deciden si el reloj está sin datos: eso lo hace solo el encabezado,
+ * con [HealthSnapshot.isWatchDataStale], para que nunca se contradigan.
+ */
+private data class MetricValue(val value: String, val unit: String?, val caption: String)
 
 @Composable
 private fun <T> HealthMetricCard(
@@ -359,10 +354,6 @@ private fun <T> HealthMetricCard(
             MetricCard(label = label, value = shown.value, unit = shown.unit) {
                 Spacer(Modifier.height(4.dp))
                 Text(shown.caption, style = MaterialTheme.typography.bodySmall, color = VeillerColors.TextSecondary)
-                if (shown.stale) {
-                    Spacer(Modifier.height(8.dp))
-                    StatusChip("Sin datos recientes del reloj", tone = ChipTone.Warning)
-                }
             }
         }
         HealthMetric.NotPermitted -> MetricCard(label = label, value = EMPTY_VALUE) {
@@ -424,6 +415,8 @@ private fun ElderHomePreview() {
                     heartRate = HealthMetric.Value(HeartRateReading(145, now.minus(Duration.ofHours(8)), PREVIEW_SOURCE)),
                     steps = HealthMetric.Value(StepsReading(8894, now.minus(Duration.ofHours(9)), setOf(PREVIEW_SOURCE))),
                     sleep = HealthMetric.NoData,
+                    lastWatchDataAt = now.minus(Duration.ofMinutes(20)),
+                    missing = emptySet(),
                     readAt = now,
                 ),
             ),

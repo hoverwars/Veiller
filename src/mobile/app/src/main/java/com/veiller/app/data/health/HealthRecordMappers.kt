@@ -2,9 +2,11 @@ package com.veiller.app.data.health
 
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.metadata.DataOrigin
+import java.time.Instant
 
 /** Registros de Health Connect -> lecturas de dominio. Funciones puras. */
 object HealthRecordMappers {
@@ -34,6 +36,13 @@ object HealthRecordMappers {
             sourcePackages = origins.mapTo(mutableSetOf()) { it.packageName },
         )
     }
+
+    /**
+     * Fin del registro más reciente escrito por alguna de las apps de [watchPackages].
+     * [endOf] da el fin de cada tipo (IntervalRecord es interno en la librería).
+     */
+    fun <T : Record> latestEndFrom(records: List<T>, watchPackages: Set<String>, endOf: (T) -> Instant): Instant? =
+        records.filter { it.metadata.dataOrigin.packageName in watchPackages }.maxOfOrNull(endOf)
 
     fun latestSleep(records: List<SleepSessionRecord>): SleepReading? =
         records.maxByOrNull { it.endTime }?.let {

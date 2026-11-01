@@ -50,11 +50,21 @@ Tested with a Redmi Watch 5 Lite and Mi Fitness:
 2. In Mi Fitness, enable automatic heart rate measurement (shortest interval) and
    sleep monitoring.
 3. In Mi Fitness, go to Profile > Third-party data > Health Connect and allow it to
-   write heart rate, steps and sleep.
+   write heart rate, steps, active calories and sleep.
 4. Remove battery optimization for Mi Fitness (and Veiller) and allow Mi Fitness to
    auto-start. Otherwise the phone kills the sync.
-5. Check without any app: Settings > Health Connect > Data and access > Heart rate
-   should list records from Mi Fitness. If it is empty, Veiller will see nothing.
+5. Check without any app: Settings > Health Connect > Data and access should list
+   steps and active calories from Mi Fitness. If it is empty, Veiller will see nothing.
+
+**Mi Fitness only writes workout heart rate to Health Connect.** On the test phone
+(2026-11-01), Mi Fitness showed continuous heart rate every minute, but Health
+Connect only received the heart rate recorded during workouts. Steps and active
+calories (30 min blocks) arrive almost live. So with this watch the heart rate card
+usually shows the last workout ("Última medición registrada"). Whether Mi Fitness
+writes a nightly batch is still being checked.
+
+**To do: test with a Garmin watch** (Garmin Connect is expected to write
+continuous heart rate to Health Connect).
 
 Health Connect is part of the system on Android 14+. On Android 13 or lower it is
 a separate app from the Play Store; Veiller offers the Play Store link when it is
@@ -66,10 +76,13 @@ sees a "Conceder acceso a tus datos de salud" card on the home screen instead.
 
 Data is read when the home screen opens and with "Actualizar"; there is no
 background sync. Mi Fitness only writes when the watch syncs, so values can be
-minutes or hours old: each metric shows its real measurement time. Only heart rate
-(continuous) decides "Sin datos recientes del reloj", using the threshold in
-`data/health/HealthConfig.kt`; steps never count as stale, since an elder who sits
-still produces no step records.
+minutes or hours old: each metric shows its real measurement time.
+
+"Sin datos recientes del reloj" depends only on the watch liveness signal: the latest
+end time among heart rate, steps and active calories records written by the watch
+app (`WATCH_LIVENESS_TYPES`, `WATCH_APP_PACKAGES` and `WATCH_LIVENESS_STALE_AFTER` in
+`data/health/HealthConfig.kt`). The header and the cards use that same rule. An old
+value on its own does not mean the watch is off.
 
 To test without the watch, insert sample records with Google's Health Connect
 Toolbox app.

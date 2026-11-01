@@ -1,11 +1,13 @@
 package com.veiller.app.data.health
 
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.units.Energy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -35,6 +37,28 @@ class HealthRecordMappersTest {
 
     private fun sleep(start: Instant, end: Instant) =
         SleepSessionRecord(start, offset, end, offset, metadata = Metadata.manualEntry())
+
+    private fun calories(start: Instant, end: Instant) =
+        ActiveCaloriesBurnedRecord(start, offset, end, offset, Energy.kilocalories(12.0), Metadata.manualEntry())
+
+    @Test fun `señal de vida toma el fin más reciente entre tipos de la app del reloj`() {
+        val stepsRecord = steps(t0, t0.plus(Duration.ofMinutes(15)))
+        val caloriesRecord = calories(t0, t0.plus(Duration.ofMinutes(30)))
+        val watch = setOf(caloriesRecord.metadata.dataOrigin.packageName)
+        val latestSteps = HealthRecordMappers.latestEndFrom(listOf(stepsRecord), watch) { it.endTime }
+        val latestCalories = HealthRecordMappers.latestEndFrom(listOf(caloriesRecord), watch) { it.endTime }
+        assertEquals(t0.plus(Duration.ofMinutes(15)), latestSteps)
+        assertEquals(t0.plus(Duration.ofMinutes(30)), latestCalories)
+    }
+
+    @Test fun `señal de vida ignora registros de otras apps`() {
+        val records = listOf(calories(t0, t0.plus(Duration.ofMinutes(30))))
+        assertNull(HealthRecordMappers.latestEndFrom(records, setOf("com.example.otra")) { it.endTime })
+    }
+
+    @Test fun `señal de vida sin registros es null`() {
+        assertNull(HealthRecordMappers.latestEndFrom(emptyList<StepsRecord>(), setOf("com.example.reloj")) { it.endTime })
+    }
 
     @Test fun `estado del SDK`() {
         assertEquals(HealthAvailability.AVAILABLE, HealthRecordMappers.availability(HealthConnectClient.SDK_AVAILABLE))

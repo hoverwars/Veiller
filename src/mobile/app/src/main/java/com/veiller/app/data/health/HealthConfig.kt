@@ -1,5 +1,6 @@
 package com.veiller.app.data.health
 
+import com.veiller.app.core.model.HealthDataType
 import java.time.Duration
 
 /** Parámetros de lectura de Health Connect. Ajustar aquí, no en el código que los usa. */
@@ -14,15 +15,33 @@ object HealthConfig {
     const val LATEST_RECORDS_PAGE_SIZE = 20
 
     /**
-     * Antigüedad a partir de la cual la FC se considera desactualizada. Solo la FC
-     * decide "Sin datos recientes del reloj": es continua, y un adulto mayor quieto no
-     * genera pasos. Provisional: Mi Fitness escribe cuando el reloj sincroniza, sin
-     * intervalo garantizado; revisar con la latencia medida en el dispositivo.
+     * Una FC más vieja que esto se muestra como "Última medición registrada". No implica
+     * que el reloj esté apagado: Mi Fitness solo escribe en Health Connect la FC de los
+     * entrenamientos.
      */
     val HEART_RATE_STALE_AFTER: Duration = Duration.ofHours(2)
 
     /** Una sesión de sueño que terminó hace más que esto no es la de la última noche. */
     val SLEEP_STALE_AFTER: Duration = Duration.ofHours(36)
+
+    /** Paquete de Mi Fitness, la app del Redmi Watch 5 Lite. */
+    const val MI_FITNESS_PACKAGE = "com.xiaomi.wearable"
+
+    /** Apps de reloj cuyos registros cuentan como señal de vida (dataOrigin.packageName). */
+    val WATCH_APP_PACKAGES: Set<String> = setOf(MI_FITNESS_PACKAGE)
+
+    /**
+     * Señal de vida del reloj: el fin del registro más reciente de estos tipos escrito por
+     * una app de [WATCH_APP_PACKAGES]. Decide "Sin datos recientes del reloj".
+     */
+    val WATCH_LIVENESS_TYPES: Set<HealthDataType> =
+        setOf(HealthDataType.HEART_RATE, HealthDataType.STEPS, HealthDataType.ACTIVE_CALORIES)
+
+    /** Hasta dónde se busca la señal de vida. */
+    val WATCH_LIVENESS_LOOKBACK: Duration = Duration.ofDays(3)
+
+    /** Sin señal de vida durante este tiempo, el reloj se considera sin datos recientes. Provisional. */
+    val WATCH_LIVENESS_STALE_AFTER: Duration = Duration.ofHours(2)
 
     /** Proveedor de Health Connect en Android 13 o menos (app de Play Store). */
     const val PROVIDER_PACKAGE = "com.google.android.apps.healthdata"
