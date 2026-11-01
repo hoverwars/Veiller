@@ -27,6 +27,13 @@ class FormatTest {
     @Test fun `vencimiento del código`() {
         assertEquals("Vence en 23 h 58 min", Format.remaining(Duration.ofHours(23).plusMinutes(58)))
         assertEquals("Código vencido", Format.remaining(Duration.ofMinutes(-1)))
+        assertEquals("Código vencido", Format.remaining(Duration.ZERO))
+    }
+
+    @Test fun `vencimiento ignora segundos y admite más de un día`() {
+        assertEquals("Vence en 1 h 5 min", Format.remaining(Duration.ofHours(1).plusMinutes(5).plusSeconds(59)))
+        assertEquals("Vence en 0 h 0 min", Format.remaining(Duration.ofSeconds(30)))
+        assertEquals("Vence en 25 h 0 min", Format.remaining(Duration.ofHours(25)))
     }
 
     @Test fun iniciales() {
