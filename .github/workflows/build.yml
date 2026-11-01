@@ -18,6 +18,10 @@ jobs:
         working-directory: ./src/back/Veiller.Api
         run: dotnet restore
 
+      - name: .NET Test
+        working-directory: ./src/back
+        run: dotnet test --solution Veiller.slnx -c Release
+
       - name: .NET Publish
         working-directory: ./src/back/Veiller.Api
         run: dotnet publish -c Release --no-restore

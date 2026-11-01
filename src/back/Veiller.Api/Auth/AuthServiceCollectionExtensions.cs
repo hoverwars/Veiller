@@ -23,7 +23,8 @@ public static class AuthServiceCollectionExtensions
         }));
         services.AddSingleton(sp => FirebaseAuth.GetAuth(sp.GetRequiredService<FirebaseApp>()));
 
-        services.AddHttpClient<FirebaseIdentityClient>();
+        services.AddSingleton<IFirebaseAdmin, FirebaseAdminFacade>();
+        services.AddHttpClient<IFirebaseIdentityClient, FirebaseIdentityClient>();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)

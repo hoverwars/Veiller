@@ -20,7 +20,7 @@ public sealed class AuthFailureException(AuthFailure failure, string message) : 
 public sealed record FirebaseTokens(string Uid, string IdToken, string RefreshToken, int ExpiresIn);
 
 /// <summary>Client for the Firebase Auth REST API (Identity Toolkit and Secure Token).</summary>
-public sealed class FirebaseIdentityClient(HttpClient http, IOptions<FirebaseOptions> options)
+public sealed class FirebaseIdentityClient(HttpClient http, IOptions<FirebaseOptions> options) : IFirebaseIdentityClient
 {
     private const string SignInUrl = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword";
     private const string RefreshUrl = "https://securetoken.googleapis.com/v1/token";
