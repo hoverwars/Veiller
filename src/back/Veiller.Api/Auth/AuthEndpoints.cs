@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using FirebaseAdmin.Auth;
 
 namespace Veiller.Api.Auth;
 
@@ -32,24 +31,19 @@ public static class AuthEndpoints
 
     private static async Task<IResult> RegisterAsync(
         RegisterRequest request,
-        FirebaseAuth auth,
-        FirebaseIdentityClient identity,
+        IFirebaseAdmin admin,
+        IFirebaseIdentityClient identity,
         ILogger<FirebaseIdentityClient> logger,
         CancellationToken ct)
     {
         var email = request.Email.Trim().ToLowerInvariant();
 
-        UserRecord created;
+        FirebaseUser created;
         try
         {
-            created = await auth.CreateUserAsync(new UserRecordArgs
-            {
-                Email = email,
-                Password = request.Password,
-                DisplayName = request.FullName.Trim(),
-            }, ct);
+            created = await admin.CreateUserAsync(email, request.Password, request.FullName.Trim(), ct);
         }
-        catch (FirebaseAuthException ex) when (ex.AuthErrorCode == AuthErrorCode.EmailAlreadyExists)
+        catch (EmailAlreadyExistsException)
         {
             return Results.Problem("An account with this email already exists.", statusCode: StatusCodes.Status409Conflict);
         }
@@ -61,14 +55,14 @@ public static class AuthEndpoints
         try
         {
             // Claims go in before the first sign-in so the very first token already carries the role.
-            await auth.SetCustomUserClaimsAsync(created.Uid, new Dictionary<string, object>
+            await admin.SetCustomClaimsAsync(created.Uid, new Dictionary<string, object>
             {
                 [RoleClaim] = ToClaim(request.Role),
                 [OnboardingClaim] = false,
             }, ct);
 
             var tokens = await identity.SignInWithPasswordAsync(email, request.Password, ct);
-            var user = new UserDto(created.Uid, created.DisplayName, email, request.Role, false);
+            var user = new UserDto(created.Uid, created.DisplayName ?? "", email, request.Role, false);
             return Results.Created("/api/auth/me",
                 new AuthResponse(user, tokens.IdToken, tokens.RefreshToken, tokens.ExpiresIn));
         }
@@ -76,32 +70,36 @@ public static class AuthEndpoints
         {
             // Do not leave an account without a role behind.
             logger.LogError(ex, "Registration failed after account creation, rolling back {Uid}", created.Uid);
-            await auth.DeleteUserAsync(created.Uid, CancellationToken.None);
+            await admin.DeleteUserAsync(created.Uid, CancellationToken.None);
             return Results.Problem("Could not complete the registration.", statusCode: StatusCodes.Status500InternalServerError);
         }
     }
 
     private static async Task<IResult> LoginAsync(
         LoginRequest request,
-        FirebaseAuth auth,
-        FirebaseIdentityClient identity,
+        IFirebaseAdmin admin,
+        IFirebaseIdentityClient identity,
         CancellationToken ct)
     {
         try
         {
             var tokens = await identity.SignInWithPasswordAsync(request.Email.Trim(), request.Password, ct);
-            var record = await auth.GetUserAsync(tokens.Uid, ct);
-            return Results.Ok(new AuthResponse(ToDto(record), tokens.IdToken, tokens.RefreshToken, tokens.ExpiresIn));
+            var user = await admin.GetUserAsync(tokens.Uid, ct);
+            return Results.Ok(new AuthResponse(ToDto(user), tokens.IdToken, tokens.RefreshToken, tokens.ExpiresIn));
         }
         catch (AuthFailureException ex)
         {
             return FailureToProblem(ex, "Incorrect email or password.");
         }
+        catch (UserNotFoundException)
+        {
+            return Results.Problem("Incorrect email or password.", statusCode: StatusCodes.Status401Unauthorized);
+        }
     }
 
     private static async Task<IResult> RefreshAsync(
         RefreshRequest request,
-        FirebaseIdentityClient identity,
+        IFirebaseIdentityClient identity,
         CancellationToken ct)
     {
         try
@@ -115,59 +113,59 @@ public static class AuthEndpoints
         }
     }
 
-    private static async Task<IResult> MeAsync(ClaimsPrincipal principal, FirebaseAuth auth, CancellationToken ct)
+    private static async Task<IResult> MeAsync(ClaimsPrincipal principal, IFirebaseAdmin admin, CancellationToken ct)
     {
-        var record = await GetCurrentUserAsync(principal, auth, ct);
-        return record is null ? Results.Unauthorized() : Results.Ok(ToDto(record));
+        var user = await GetCurrentUserAsync(principal, admin, ct);
+        return user is null ? Results.Unauthorized() : Results.Ok(ToDto(user));
     }
 
     private static async Task<IResult> CompleteOnboardingAsync(
         ClaimsPrincipal principal,
-        FirebaseAuth auth,
+        IFirebaseAdmin admin,
         CancellationToken ct)
     {
-        var record = await GetCurrentUserAsync(principal, auth, ct);
-        if (record is null) return Results.Unauthorized();
+        var user = await GetCurrentUserAsync(principal, admin, ct);
+        if (user is null) return Results.Unauthorized();
 
-        var claims = new Dictionary<string, object>(record.CustomClaims) { [OnboardingClaim] = true };
-        await auth.SetCustomUserClaimsAsync(record.Uid, claims, ct);
+        var claims = new Dictionary<string, object>(user.Claims) { [OnboardingClaim] = true };
+        await admin.SetCustomClaimsAsync(user.Uid, claims, ct);
         return Results.NoContent();
     }
 
-    private static async Task<IResult> LogoutAsync(ClaimsPrincipal principal, FirebaseAuth auth, CancellationToken ct)
+    private static async Task<IResult> LogoutAsync(ClaimsPrincipal principal, IFirebaseAdmin admin, CancellationToken ct)
     {
         var uid = UidOf(principal);
         if (uid is null) return Results.Unauthorized();
 
-        await auth.RevokeRefreshTokensAsync(uid, ct);
+        await admin.RevokeRefreshTokensAsync(uid, ct);
         return Results.NoContent();
     }
 
     private static string? UidOf(ClaimsPrincipal principal) =>
         principal.FindFirstValue("user_id") ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
 
-    private static async Task<UserRecord?> GetCurrentUserAsync(ClaimsPrincipal principal, FirebaseAuth auth, CancellationToken ct)
+    private static async Task<FirebaseUser?> GetCurrentUserAsync(ClaimsPrincipal principal, IFirebaseAdmin admin, CancellationToken ct)
     {
         var uid = UidOf(principal);
         if (uid is null) return null;
 
         try
         {
-            return await auth.GetUserAsync(uid, ct);
+            return await admin.GetUserAsync(uid, ct);
         }
-        catch (FirebaseAuthException ex) when (ex.AuthErrorCode == AuthErrorCode.UserNotFound)
+        catch (UserNotFoundException)
         {
             return null;
         }
     }
 
-    private static UserDto ToDto(UserRecord record)
+    private static UserDto ToDto(FirebaseUser user)
     {
-        var role = record.CustomClaims.TryGetValue(RoleClaim, out var r) && r?.ToString() == "elder"
+        var role = user.Claims.TryGetValue(RoleClaim, out var r) && r?.ToString() == "elder"
             ? Role.Elder
             : Role.Caregiver;
-        var onboarded = record.CustomClaims.TryGetValue(OnboardingClaim, out var o) && o is true;
-        return new UserDto(record.Uid, record.DisplayName ?? "", record.Email ?? "", role, onboarded);
+        var onboarded = user.Claims.TryGetValue(OnboardingClaim, out var o) && o is true;
+        return new UserDto(user.Uid, user.DisplayName ?? "", user.Email ?? "", role, onboarded);
     }
 
     private static string ToClaim(Role role) => role == Role.Elder ? "elder" : "caregiver";

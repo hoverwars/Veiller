@@ -32,3 +32,6 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }))
 app.MapAuthEndpoints();
 
 await app.RunAsync();
+
+// Exposes the entry point to WebApplicationFactory in the test project.
+public partial class Program;
