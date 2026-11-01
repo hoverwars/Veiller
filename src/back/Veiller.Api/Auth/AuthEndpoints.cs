@@ -91,6 +91,10 @@ public static class AuthEndpoints
         {
             return FailureToProblem(ex, "Incorrect email or password.");
         }
+        catch (UserNotFoundException)
+        {
+            return Results.Problem("Incorrect email or password.", statusCode: StatusCodes.Status401Unauthorized);
+        }
     }
 
     private static async Task<IResult> RefreshAsync(

@@ -37,7 +37,7 @@ public sealed class LoginEndpointTests : IDisposable
         _factory.Identity.OnSignIn = (_, _) => throw new AuthFailureException(failure, "boom");
 
     private Task<HttpResponseMessage> PostJsonAsync(string json, string mediaType = "application/json") =>
-        _client.PostAsync(Url, new StringContent(json, Encoding.UTF8, mediaType));
+        _client.PostAsync(Url, new StringContent(json, Encoding.UTF8, mediaType), TestContext.Current.CancellationToken);
 
     // ---- Success ----
 
@@ -47,10 +47,10 @@ public sealed class LoginEndpointTests : IDisposable
         AddUser("uid-1");
         SignInSucceedsFor("uid-1");
 
-        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "secret1" });
+        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "secret1" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
         Assert.Equal("id-token", body.GetProperty("idToken").GetString());
         Assert.Equal("refresh-token", body.GetProperty("refreshToken").GetString());
         Assert.Equal(3600, body.GetProperty("expiresIn").GetInt32());
@@ -69,9 +69,9 @@ public sealed class LoginEndpointTests : IDisposable
         AddUser("uid-1", ("role", claim));
         SignInSucceedsFor("uid-1");
 
-        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "secret1" });
+        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "secret1" }, TestContext.Current.CancellationToken);
 
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
         Assert.Equal(expectedRole, body.GetProperty("user").GetProperty("role").GetString());
     }
 
@@ -81,9 +81,9 @@ public sealed class LoginEndpointTests : IDisposable
         AddUser("uid-1");
         SignInSucceedsFor("uid-1");
 
-        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "secret1" });
+        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "secret1" }, TestContext.Current.CancellationToken);
 
-        var user = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("user");
+        var user = (await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken)).GetProperty("user");
         Assert.Equal("Caregiver", user.GetProperty("role").GetString());
         Assert.False(user.GetProperty("onboardingCompleted").GetBoolean());
     }
@@ -94,9 +94,9 @@ public sealed class LoginEndpointTests : IDisposable
         AddUser("uid-1", ("onboardingCompleted", true));
         SignInSucceedsFor("uid-1");
 
-        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "secret1" });
+        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "secret1" }, TestContext.Current.CancellationToken);
 
-        var user = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("user");
+        var user = (await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken)).GetProperty("user");
         Assert.True(user.GetProperty("onboardingCompleted").GetBoolean());
     }
 
@@ -106,7 +106,7 @@ public sealed class LoginEndpointTests : IDisposable
         AddUser("uid-1");
         SignInSucceedsFor("uid-1");
 
-        await _client.PostAsJsonAsync(Url, new { email = "  jane@example.com  ", password = " secret1 " });
+        await _client.PostAsJsonAsync(Url, new { email = "  jane@example.com  ", password = " secret1 " }, TestContext.Current.CancellationToken);
 
         var call = Assert.Single(_factory.Identity.SignInCalls);
         Assert.Equal("jane@example.com", call.Email);
@@ -138,7 +138,7 @@ public sealed class LoginEndpointTests : IDisposable
     {
         var response = await PostJsonAsync("{}");
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("json", response.Content.Headers.ContentType?.MediaType);
         Assert.Contains("email", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("password", body, StringComparison.OrdinalIgnoreCase);
@@ -170,7 +170,7 @@ public sealed class LoginEndpointTests : IDisposable
     [Fact]
     public async Task Login_with_wrong_http_method_returns_405()
     {
-        var response = await _client.GetAsync(Url);
+        var response = await _client.GetAsync(Url, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
     }
@@ -183,7 +183,7 @@ public sealed class LoginEndpointTests : IDisposable
         // LoginRequest only has [Required]; documents the current behaviour.
         SignInFailsWith(AuthFailure.InvalidCredentials);
 
-        var response = await _client.PostAsJsonAsync(Url, new { email, password = "secret1" });
+        var response = await _client.PostAsJsonAsync(Url, new { email, password = "secret1" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal(email, Assert.Single(_factory.Identity.SignInCalls).Email);
@@ -196,10 +196,10 @@ public sealed class LoginEndpointTests : IDisposable
     {
         SignInFailsWith(AuthFailure.InvalidCredentials);
 
-        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "wrong" });
+        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "wrong" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
         Assert.Equal("Incorrect email or password.", body.GetProperty("detail").GetString());
     }
 
@@ -208,7 +208,7 @@ public sealed class LoginEndpointTests : IDisposable
     {
         SignInFailsWith(AuthFailure.TooManyAttempts);
 
-        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "secret1" });
+        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "secret1" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
     }
@@ -218,20 +218,18 @@ public sealed class LoginEndpointTests : IDisposable
     {
         SignInFailsWith(AuthFailure.Unknown);
 
-        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "secret1" });
+        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "secret1" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
     }
 
     [Fact]
-    public async Task Login_when_user_record_is_missing_after_sign_in_throws()
+    public async Task Login_when_user_record_is_missing_after_sign_in_returns_401()
     {
-        // Current behaviour: UserNotFoundException is not handled by LoginAsync, so the request fails with a 500.
-        // Likely worth mapping to a 401 instead; kept as-is until decided.
         SignInSucceedsFor("ghost");
 
-        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "secret1" });
+        var response = await _client.PostAsJsonAsync(Url, new { email = "jane@example.com", password = "secret1" }, TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 }
