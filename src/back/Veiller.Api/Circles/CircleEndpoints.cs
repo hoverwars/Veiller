@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using Veiller.Api.Auth;
 using Veiller.Api.Data;
 using Veiller.Api.Data.Entities;
 
@@ -103,7 +104,4 @@ public static class CircleEndpoints
 
     private static CircleMemberDto ToDto(CircleMember m) =>
         new(m.UserId, m.User!.FullName, m.Role, m.User.Relation, m.IsSponsor, m.User.Phone);
-
-    public static string? Uid(this ClaimsPrincipal principal) =>
-        principal.FindFirstValue("user_id") ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
 }

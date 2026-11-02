@@ -161,18 +161,16 @@ public static class AuthEndpoints
 
     private static async Task<IResult> LogoutAsync(ClaimsPrincipal principal, IFirebaseAdmin admin, CancellationToken ct)
     {
-        var uid = UidOf(principal);
+        var uid = principal.Uid();
         if (uid is null) return Results.Unauthorized();
 
         await admin.RevokeRefreshTokensAsync(uid, ct);
         return Results.NoContent();
     }
 
-    private static string? UidOf(ClaimsPrincipal principal) => principal.Uid();
-
     private static async Task<FirebaseUser?> GetCurrentUserAsync(ClaimsPrincipal principal, IFirebaseAdmin admin, CancellationToken ct)
     {
-        var uid = UidOf(principal);
+        var uid = principal.Uid();
         if (uid is null) return null;
 
         try

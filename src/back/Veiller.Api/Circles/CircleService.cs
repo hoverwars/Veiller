@@ -30,7 +30,16 @@ public static class CircleService
             JoinedAt = now,
         });
         db.Circles.Add(circle);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // A concurrent request may have created the circle first: that is fine, anything else is a real error.
+            db.ChangeTracker.Clear();
+            if (!await db.Circles.AsNoTracking().AnyAsync(c => c.OwnerUserId == ownerUserId, ct)) throw;
+        }
     }
 
     public static async Task<RemoveMemberOutcome> RemoveMemberAsync(
