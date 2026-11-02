@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Veiller.Api.Data;
 
 namespace Veiller.Api.Auth;
 
@@ -33,6 +34,8 @@ public static class AuthEndpoints
         RegisterRequest request,
         IFirebaseAdmin admin,
         IFirebaseIdentityClient identity,
+        VeillerDbContext db,
+        TimeProvider clock,
         ILogger<FirebaseIdentityClient> logger,
         CancellationToken ct)
     {
@@ -61,6 +64,16 @@ public static class AuthEndpoints
                 [OnboardingClaim] = false,
             }, ct);
 
+            db.Users.Add(new Data.Entities.User
+            {
+                Id = created.Uid,
+                Email = email,
+                FullName = request.FullName.Trim(),
+                Role = request.Role,
+                CreatedAt = clock.GetUtcNow(),
+            });
+            await db.SaveChangesAsync(ct);
+
             var tokens = await identity.SignInWithPasswordAsync(email, request.Password, ct);
             var user = new UserDto(created.Uid, created.DisplayName ?? "", email, request.Role, false);
             return Results.Created("/api/auth/me",
@@ -70,7 +83,14 @@ public static class AuthEndpoints
         {
             // Do not leave an account without a role behind.
             logger.LogError(ex, "Registration failed after account creation, rolling back {Uid}", created.Uid);
-            await admin.DeleteUserAsync(created.Uid, CancellationToken.None);
+            try
+            {
+                await admin.DeleteUserAsync(created.Uid, CancellationToken.None);
+            }
+            catch (Exception rollbackEx)
+            {
+                logger.LogCritical(rollbackEx, "Rollback failed, orphaned Firebase account {Uid} must be deleted manually", created.Uid);
+            }
             return Results.Problem("Could not complete the registration.", statusCode: StatusCodes.Status500InternalServerError);
         }
     }

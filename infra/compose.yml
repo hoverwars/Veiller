@@ -1,4 +1,19 @@
 services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: veiller
+      POSTGRES_USER: veiller
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U veiller -d veiller"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   api:
     image: ${CR_URL}/veiller/api:latest
     expose:
@@ -7,9 +22,13 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       Firebase__ProjectId: ${FIREBASE_PROJECT_ID}
       Firebase__WebApiKey: ${FIREBASE_WEB_API_KEY}
+      ConnectionStrings__Veiller: Host=postgres;Database=veiller;Username=veiller;Password=${POSTGRES_PASSWORD}
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-sa.json
     volumes:
       - ./firebase-sa.json:/run/secrets/firebase-sa.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   caddy:
@@ -26,5 +45,6 @@ services:
       - caddy_config:/config
 
 volumes:
+  postgres_data:
   caddy_data:
   caddy_config:

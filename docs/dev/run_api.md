@@ -19,6 +19,24 @@ The `https` profile sets `ASPNETCORE_ENVIRONMENT=Development` but it is not nece
 
 If the HTTPS dev certificate is not trusted yet, run once: `dotnet dev-certs https --trust`.
 
+## Database
+
+The API stores its data in PostgreSQL (EF Core). Migrations are applied automatically at startup.
+
+```bash
+docker run -d --name veiller-db -p 5432:5432   -e POSTGRES_DB=veiller -e POSTGRES_USER=veiller -e POSTGRES_PASSWORD=veiller postgres:17
+```
+
+`appsettings.Development.json` already points to this container. To use another database, set `ConnectionStrings:Veiller`.
+In production (`infra/compose.yml`), define `POSTGRES_PASSWORD` in `infra/.env`.
+
+Add a migration after changing the model:
+
+```bash
+cd src/back
+dotnet ef migrations add <Name> --project Veiller.Api --output-dir Data/Migrations
+```
+
 ## URLs
 
 | What    | URL                                    |
