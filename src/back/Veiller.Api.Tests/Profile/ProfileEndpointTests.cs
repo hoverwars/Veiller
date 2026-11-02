@@ -216,6 +216,26 @@ public sealed class ProfileEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task Patch_rename_when_firebase_fails_returns_502_saves_nothing_and_a_retry_succeeds()
+    {
+        await SeedUserAsync("cg", AuthRole.Caregiver);
+        var original = (await LoadUserAsync("cg")).FullName;
+        _factory.Admin.UpdateFailure = new InvalidOperationException("Firebase unreachable");
+
+        var first = await PatchAsync("cg", """{"fullName":"Ana Gomez"}""");
+
+        Assert.Equal(HttpStatusCode.BadGateway, first.StatusCode);
+        Assert.Equal(original, (await LoadUserAsync("cg")).FullName);
+        _factory.Admin.UpdateFailure = null;
+
+        var retry = await PatchAsync("cg", """{"fullName":"Ana Gomez"}""");
+
+        Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
+        Assert.Equal("Ana Gomez", (await LoadUserAsync("cg")).FullName);
+        Assert.Equal("Ana Gomez", _factory.Admin.Users["cg"].DisplayName);
+    }
+
+    [Fact]
     public async Task Patch_cannot_target_another_user()
     {
         await SeedUserAsync("cg", AuthRole.Caregiver);

@@ -33,7 +33,7 @@ public static class ProfileEndpoints
     }
 
     private static async Task<IResult> UpdateAsync(
-        UpdateProfileRequest request, ClaimsPrincipal principal, VeillerDbContext db, IFirebaseAdmin admin, CancellationToken ct)
+        UpdateProfileRequest request, ClaimsPrincipal principal, VeillerDbContext db, IFirebaseAdmin admin, ILoggerFactory loggers, CancellationToken ct)
     {
         var uid = principal.Uid();
         if (uid is null) return Results.Unauthorized();
@@ -47,8 +47,8 @@ public static class ProfileEndpoints
         if (user is null) return Results.NotFound();
 
         var renamed = ProfileService.Apply(user, request);
-        await db.SaveChangesAsync(ct);
 
+        // Firebase first: if it fails nothing is saved, so a retry still sees the rename and re-syncs.
         if (renamed is not null)
         {
             try
@@ -59,8 +59,14 @@ public static class ProfileEndpoints
             {
                 // Identity already gone from Firebase: the local profile is still the source of truth.
             }
+            catch (Exception ex)
+            {
+                loggers.CreateLogger("Veiller.Api.Profile").LogError(ex, "Display name of {Uid} could not be synced to Firebase", uid);
+                return Results.Problem("The profile could not be updated, try again.", statusCode: StatusCodes.Status502BadGateway);
+            }
         }
 
+        await db.SaveChangesAsync(ct);
         return Results.Ok(ProfileService.ToDto(user));
     }
 

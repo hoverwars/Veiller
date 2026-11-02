@@ -27,8 +27,12 @@ public sealed class FakeFirebaseAdmin : IFirebaseAdmin
         return Task.CompletedTask;
     }
 
+    /// <summary>When set, UpdateDisplayNameAsync throws it (simulates Firebase being unreachable).</summary>
+    public Exception? UpdateFailure { get; set; }
+
     public Task UpdateDisplayNameAsync(string uid, string displayName, CancellationToken ct)
     {
+        if (UpdateFailure is not null) throw UpdateFailure;
         Users[uid] = Users[uid] with { DisplayName = displayName };
         return Task.CompletedTask;
     }
