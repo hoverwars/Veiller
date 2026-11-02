@@ -76,6 +76,8 @@ public static class RejectionReason
     // Not in the first version of the spec (see docs/dev/health_sync_backend_notes.md).
     public const string InvalidFormat = "INVALID_FORMAT";
     public const string CountOutOfRange = "COUNT_OUT_OF_RANGE";
+    public const string TooManySamples = "TOO_MANY_SAMPLES";
+    public const string TimeTooOld = "TIME_TOO_OLD";
 }
 
 public sealed record HealthStatusDto(DateTimeOffset? LastUploadAt, DateTimeOffset? WatchLastSeenAt, LastSampleDto LastSample);

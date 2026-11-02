@@ -40,6 +40,34 @@ public sealed class FirebaseAdminFacade(FirebaseAuth auth) : IFirebaseAdmin
     public Task UpdateDisplayNameAsync(string uid, string displayName, CancellationToken ct) =>
         auth.UpdateUserAsync(new UserRecordArgs { Uid = uid, DisplayName = displayName }, ct);
 
+    public async Task UpdateEmailAsync(string uid, string email, CancellationToken ct)
+    {
+        try
+        {
+            await auth.UpdateUserAsync(new UserRecordArgs { Uid = uid, Email = email }, ct);
+        }
+        catch (FirebaseAuthException ex) when (ex.AuthErrorCode == AuthErrorCode.EmailAlreadyExists)
+        {
+            throw new EmailAlreadyExistsException(ex.Message);
+        }
+        catch (FirebaseAuthException ex) when (ex.AuthErrorCode == AuthErrorCode.UserNotFound)
+        {
+            throw new UserNotFoundException(ex.Message);
+        }
+    }
+
+    public async Task UpdatePasswordAsync(string uid, string password, CancellationToken ct)
+    {
+        try
+        {
+            await auth.UpdateUserAsync(new UserRecordArgs { Uid = uid, Password = password }, ct);
+        }
+        catch (FirebaseAuthException ex) when (ex.AuthErrorCode == AuthErrorCode.UserNotFound)
+        {
+            throw new UserNotFoundException(ex.Message);
+        }
+    }
+
     public async Task DeleteUserAsync(string uid, CancellationToken ct)
     {
         try

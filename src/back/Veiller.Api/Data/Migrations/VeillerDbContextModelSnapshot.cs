@@ -22,6 +22,68 @@ namespace Veiller.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Veiller.Api.Data.Entities.Alert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("CircleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("OpenedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int?>("Value")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CircleId", "OpenedAt");
+
+                    b.HasIndex("CircleId", "Type")
+                        .IsUnique()
+                        .HasFilter("\"Active\" = TRUE");
+
+                    b.ToTable("alerts", (string)null);
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.AlertRule", b =>
+                {
+                    b.Property<Guid>("CircleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Type")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Threshold")
+                        .HasColumnType("integer");
+
+                    b.HasKey("CircleId", "Type");
+
+                    b.ToTable("alert_rules", (string)null);
+                });
+
             modelBuilder.Entity("Veiller.Api.Data.Entities.Circle", b =>
                 {
                     b.Property<Guid>("Id")
@@ -41,9 +103,16 @@ namespace Veiller.Api.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<string>("PlanPurchaseToken")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OwnerUserId")
+                        .IsUnique();
+
+                    b.HasIndex("PlanPurchaseToken")
                         .IsUnique();
 
                     b.ToTable("circles", (string)null);
@@ -105,6 +174,32 @@ namespace Veiller.Api.Data.Migrations
                     b.HasKey("UserId", "Type");
 
                     b.ToTable("consents", (string)null);
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.DeviceToken", b =>
+                {
+                    b.Property<string>("Token")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Token");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("device_tokens", (string)null);
                 });
 
             modelBuilder.Entity("Veiller.Api.Data.Entities.HealthSyncStatus", b =>
@@ -357,6 +452,24 @@ namespace Veiller.Api.Data.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("Veiller.Api.Data.Entities.Alert", b =>
+                {
+                    b.HasOne("Veiller.Api.Data.Entities.Circle", null)
+                        .WithMany()
+                        .HasForeignKey("CircleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.AlertRule", b =>
+                {
+                    b.HasOne("Veiller.Api.Data.Entities.Circle", null)
+                        .WithMany()
+                        .HasForeignKey("CircleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Veiller.Api.Data.Entities.Circle", b =>
                 {
                     b.HasOne("Veiller.Api.Data.Entities.User", null)
@@ -384,6 +497,15 @@ namespace Veiller.Api.Data.Migrations
                 });
 
             modelBuilder.Entity("Veiller.Api.Data.Entities.Consent", b =>
+                {
+                    b.HasOne("Veiller.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.DeviceToken", b =>
                 {
                     b.HasOne("Veiller.Api.Data.Entities.User", null)
                         .WithMany()

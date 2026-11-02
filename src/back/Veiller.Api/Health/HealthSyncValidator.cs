@@ -9,22 +9,23 @@ namespace Veiller.Api.Health;
 public static class HealthSyncValidator
 {
     /// <summary>Items counted against <see cref="HealthSyncOptions.MaxItemsPerRequest"/>: samples + steps buckets + sleep sessions + deleted ids.</summary>
-    public static int CountItems(SyncRequest request) =>
-        (request.HeartRateRecords?.Sum(r => r?.Samples?.Count ?? 0) ?? 0)
+    /// <remarks>Samples of a record over <paramref name="maxSamplesPerRecord"/> are not counted: that record is rejected as an item, not as a 413.</remarks>
+    public static int CountItems(SyncRequest request, int maxSamplesPerRecord) =>
+        (request.HeartRateRecords?.Sum(r => r?.Samples?.Count is { } n && n <= maxSamplesPerRecord ? n : 0) ?? 0)
         + (request.StepsHourly?.Count ?? 0)
         + (request.SleepSessions?.Count ?? 0)
         + (request.Deleted?.HeartRateRecords?.Count ?? 0)
         + (request.Deleted?.SleepSessions?.Count ?? 0);
 
-    public static SyncPlan Validate(SyncRequest request, DateTimeOffset now, TimeSpan futureTolerance)
+    public static SyncPlan Validate(SyncRequest request, DateTimeOffset now, HealthSyncOptions options)
     {
         var plan = new SyncPlan();
-        var limit = (now + futureTolerance).UtcDateTime;
+        var window = new TimeWindow((now - options.MaxAge).UtcDateTime, (now + options.FutureTolerance).UtcDateTime);
 
-        ValidateWatchLastSeenAt(request.WatchLastSeenAt, limit, plan);
-        ValidateHeartRate(request.HeartRateRecords, limit, plan);
-        ValidateSteps(request.StepsHourly, limit, plan);
-        ValidateSleep(request.SleepSessions, limit, plan);
+        ValidateWatchLastSeenAt(request.WatchLastSeenAt, window.Latest, plan);
+        ValidateHeartRate(request.HeartRateRecords, window, options.MaxSamplesPerRecord, plan);
+        ValidateSteps(request.StepsHourly, window, plan);
+        ValidateSleep(request.SleepSessions, window, plan);
         ValidateDeleted(request.Deleted, plan);
         return plan;
     }
@@ -36,9 +37,16 @@ public static class HealthSyncValidator
         else plan.WatchLastSeenAt = seen.UtcDateTime;
     }
 
+    /// <summary>Accepted range for the timestamps compared with the clock: [now - MaxAge, now + FutureTolerance].</summary>
+    private readonly record struct TimeWindow(DateTime Earliest, DateTime Latest)
+    {
+        /// <summary>TIME_IN_FUTURE or TIME_TOO_OLD for a start/time outside the window, null otherwise.</summary>
+        public string? Check(DateTime utc) => utc > Latest ? TimeInFuture : utc < Earliest ? TimeTooOld : null;
+    }
+
     // ---- Heart rate ----
 
-    private static void ValidateHeartRate(List<HeartRateRecordItem?>? records, DateTime limit, SyncPlan plan)
+    private static void ValidateHeartRate(List<HeartRateRecordItem?>? records, TimeWindow limit, int maxSamples, SyncPlan plan)
     {
         if (records is null) return;
 
@@ -47,7 +55,7 @@ public static class HealthSyncValidator
         for (var i = 0; i < records.Count; i++)
         {
             var record = records[i];
-            var rejection = record is null ? MissingField : CheckRecord(record, limit);
+            var rejection = record is null ? MissingField : CheckRecord(record, limit, maxSamples);
             if (rejection is not null)
             {
                 plan.RejectedHeartRateRecords.Add(new RejectedItem(i, rejection));
@@ -65,19 +73,20 @@ public static class HealthSyncValidator
     }
 
     /// <summary>A problem with the record itself (id, origin, interval) rejects it whole; its stored samples stay untouched.</summary>
-    private static string? CheckRecord(HeartRateRecordItem r, DateTime limit)
+    private static string? CheckRecord(HeartRateRecordItem r, TimeWindow limit, int maxSamples)
     {
         // A record without a samples array is rejected rather than read as "no samples": replace semantics would wipe the stored ones.
         if (IsBlank(r.HcRecordId) || IsBlank(r.Origin) || r.Start is null || r.End is null || r.Samples is null) return MissingField;
         if (r.HcRecordId!.Length > HealthLimits.MaxIdLength || r.Origin!.Length > HealthLimits.MaxOriginLength) return FieldTooLong;
         if (r.End < r.Start) return InvalidInterval;
         // Only the start is checked: watch apps write blocks whose end is still in the future (the samples are checked one by one).
-        if (r.Start.Value.UtcDateTime > limit) return TimeInFuture;
+        if (limit.Check(r.Start.Value.UtcDateTime) is { } timeProblem) return timeProblem;
+        if (r.Samples.Count > maxSamples) return TooManySamples;
         return null;
     }
 
     private static List<PlannedSample> ValidateSamples(
-        int recordIndex, List<HeartRateSampleItem?> samples, DateTime start, DateTime end, DateTime limit, SyncPlan plan)
+        int recordIndex, List<HeartRateSampleItem?> samples, DateTime start, DateTime end, TimeWindow limit, SyncPlan plan)
     {
         // Several samples at the same instant collapse into the last one: (record, time) is the key.
         var byTime = new Dictionary<DateTime, int>();
@@ -95,19 +104,19 @@ public static class HealthSyncValidator
         return byTime.OrderBy(kv => kv.Key).Select(kv => new PlannedSample(kv.Key, kv.Value)).ToList();
     }
 
-    private static string? CheckSample(HeartRateSampleItem? s, DateTime start, DateTime end, DateTime limit)
+    private static string? CheckSample(HeartRateSampleItem? s, DateTime start, DateTime end, TimeWindow limit)
     {
         if (s?.Time is not { } time || s.Bpm is not { } bpm) return MissingField;
         if (bpm is < HealthLimits.MinBpm or > HealthLimits.MaxBpm) return BpmOutOfRange;
         var utc = time.UtcDateTime;
-        if (utc > limit) return TimeInFuture;
+        if (limit.Check(utc) is { } timeProblem) return timeProblem;
         if (utc < start || utc > end) return OutsideParent;
         return null;
     }
 
     // ---- Steps ----
 
-    private static void ValidateSteps(List<StepsBucketItem?>? buckets, DateTime limit, SyncPlan plan)
+    private static void ValidateSteps(List<StepsBucketItem?>? buckets, TimeWindow limit, SyncPlan plan)
     {
         if (buckets is null) return;
 
@@ -128,13 +137,13 @@ public static class HealthSyncValidator
         plan.StepsHourly.AddRange(byStart.Values);
     }
 
-    private static string? CheckBucket(StepsBucketItem? b, DateTime limit)
+    private static string? CheckBucket(StepsBucketItem? b, TimeWindow limit)
     {
         if (b?.Start is not { } start || b.End is not { } end || b.Count is not { } count) return MissingField;
         if (end <= start) return InvalidInterval;
         var s = start.UtcDateTime;
         // The bucket of the current hour is legitimate and ends in the future: only its start is compared with the clock.
-        if (s > limit) return TimeInFuture;
+        if (limit.Check(s) is { } timeProblem) return timeProblem;
         if (s.Ticks % TimeSpan.TicksPerHour != 0 || end.UtcDateTime - s != TimeSpan.FromHours(1)) return BucketNotAligned;
         if (count is < 0 or > HealthLimits.MaxStepsPerHour) return CountOutOfRange;
         return null;
@@ -142,7 +151,7 @@ public static class HealthSyncValidator
 
     // ---- Sleep ----
 
-    private static void ValidateSleep(List<SleepSessionItem?>? sessions, DateTime limit, SyncPlan plan)
+    private static void ValidateSleep(List<SleepSessionItem?>? sessions, TimeWindow limit, SyncPlan plan)
     {
         if (sessions is null) return;
 
@@ -174,13 +183,14 @@ public static class HealthSyncValidator
         plan.SleepSessions.AddRange(byId.Values);
     }
 
-    private static string? CheckSession(SleepSessionItem s, DateTime limit)
+    private static string? CheckSession(SleepSessionItem s, TimeWindow limit)
     {
         // zoneOffset is optional: Health Connect itself allows a null offset.
         if (IsBlank(s.HcRecordId) || IsBlank(s.Origin) || s.Start is null || s.End is null) return MissingField;
         if (s.HcRecordId!.Length > HealthLimits.MaxIdLength || s.Origin!.Length > HealthLimits.MaxOriginLength) return FieldTooLong;
         if (s.End <= s.Start) return InvalidInterval;
-        if (s.End.Value.UtcDateTime > limit) return TimeInFuture;
+        if (s.End.Value.UtcDateTime > limit.Latest) return TimeInFuture;
+        if (s.Start.Value.UtcDateTime < limit.Earliest) return TimeTooOld;
         if (!IsBlank(s.ZoneOffset) && !IsValidOffset(s.ZoneOffset!)) return InvalidFormat;
         return null;
     }

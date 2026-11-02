@@ -18,6 +18,13 @@ public sealed class HealthSyncOptions
     /// <summary>How far past server time a timestamp may be (phones have imperfect clocks).</summary>
     public TimeSpan FutureTolerance { get; set; } = TimeSpan.FromMinutes(5);
 
+    /// <summary>A heart rate record with more samples than this is rejected as an item (TOO_MANY_SAMPLES) instead of blocking the sync with a permanent 413.</summary>
+    [Range(1, 1_000_000)]
+    public int MaxSamplesPerRecord { get; set; } = 5000;
+
+    /// <summary>How far back a timestamp may be. The client reads at most 30 days of history, so older data is a client bug.</summary>
+    public TimeSpan MaxAge { get; set; } = TimeSpan.FromDays(35);
+
     /// <summary>How recent <c>watchLastSeenAt</c> must be for the elder home to show the watch as connected.</summary>
     public TimeSpan WatchConnectedWindow { get; set; } = TimeSpan.FromHours(6);
 }

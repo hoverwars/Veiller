@@ -50,15 +50,20 @@ These are implemented as described. Each one is cheap to change if you disagree.
 12. **Order of checks:** `401`, `403`, then `415`/`413` (body size)/`400` (JSON, `schemaVersion`), then `413` (item count),
     then per-item validation. So a non-elder never learns anything about the body limits.
 
-## Points that need a decision before the mobile side is built
+## Points that needed a decision
 
-1. **A heart rate record longer than `MaxItemsPerRequest` can never be uploaded.** Records are never split (replace
+Points 1, 2, 5 and 6 are now resolved (see below); the others are unchanged.
+
+1. **A heart rate record longer than `MaxItemsPerRequest` can never be uploaded.** *Resolved: option (c). A record with more than
+   `HealthSync:MaxSamplesPerRecord` (5000) samples is rejected as an item with `TOO_MANY_SAMPLES` (200) and does not count toward
+   the 413, so the token can move. The client should still downsample (a).* Records are never split (replace
    semantics) and each sample counts as an item. Mi Fitness writes workout heart rate; a workout sampled once per second
    is 5 000 samples after 83 minutes. That request is a permanent `413`, the client keeps the token, and heart rate
    stops syncing for good. Options: (a) the client downsamples long records to at most N samples, (b) the limit applies
    per request but a single record may exceed it, (c) the server rejects such a record as an item (`TOO_MANY_SAMPLES`,
    `200`) so the token can move. Recommendation: (c) plus (a). Not implemented, to keep the contract as agreed.
-2. **No lower bound on timestamps.** A record from 1970 is stored. The client reads at most 30 days back, so rejecting
+2. **No lower bound on timestamps.** *Resolved: `HealthSync:MaxAge` (35 days). A heart rate record start or sample time, a steps
+   bucket start or a sleep session start older than that is rejected with `TIME_TOO_OLD`.* A record from 1970 was stored. The client reads at most 30 days back, so rejecting
    anything older than about 35 days would be safe, but the contract does not say it. Needs a reason code if wanted.
 3. **Overlapping records from different apps.** The sample key is `(elder, record, time)`, so two apps writing the same
    minute are both stored. The caregiver history (feature 5) has to deduplicate by time (or prefer one `origin`) when
@@ -66,9 +71,10 @@ These are implemented as described. Each one is cheap to change if you disagree.
 4. **Consents.** Heart rate and sleep are *required* consents (cannot be refused), and steps is not a consent type, so
    ingestion does not filter anything today. If a type ever becomes optional, filtering belongs at ingestion *and* at
    read time (feature 5 must hide types that are not granted).
-5. **No rate limiting on `/api/health/sync`.** The contract lists `429` as a temporary error, but there is no limiter yet.
+5. **No rate limiting on `/api/health/sync`.** *Resolved: fixed window per user, `RateLimiting:HealthSyncPerMinute` (30), answers `429`.* The contract lists `429` as a temporary error, but there is no limiter yet.
    The foreground-only trigger makes it low risk; add one with the background sync.
-6. **Retention.** Nothing is deleted over time and `GET /api/profile/export` returns the whole history, which grows
+6. **Retention.** *Resolved: a daily background job deletes heart rate records, steps buckets and sleep sessions that ended more than
+   `Retention:HealthDataDays` (365) days ago. Aggregation is not done.* Nothing was deleted over time and `GET /api/profile/export` returns the whole history, which grows
    without bound (about 1 440 samples per elder and day). Retention and aggregation belong to feature 9.
 7. **Concurrent requests of the same elder** (two syncs overlapping): a unique-key conflict is retried once inside the
    server; if it still fails the client gets a `500` and retries, which is safe because the endpoint is idempotent.
@@ -84,10 +90,15 @@ These are implemented as described. Each one is cheap to change if you disagree.
 - Timestamps in health tables are UTC `DateTime` (`timestamptz`), not `DateTimeOffset` like the rest of the schema, so the
   "latest sample" aggregates run in SQL on PostgreSQL and on the SQLite used by tests.
 
+## Reason codes added after v1
+
+`TOO_MANY_SAMPLES` (heart rate record over `MaxSamplesPerRecord`) and `TIME_TOO_OLD` (see above), on top of `INVALID_FORMAT` and
+`COUNT_OUT_OF_RANGE`.
+
 ## Operations
 
 - Limits are server configuration, section `HealthSync` of `appsettings.json` (`MaxItemsPerRequest` 5000,
-  `MaxBodyBytes` 1048576, `FutureTolerance` `00:05:00`); override with `HealthSync__MaxItemsPerRequest=...`.
+  `MaxBodyBytes` 1048576, `FutureTolerance` `00:05:00`, `MaxSamplesPerRecord` 5000, `MaxAge` 35 days); override with `HealthSync__MaxItemsPerRequest=...`.
 - Logs carry counts only. EF Core's SQL command log is set to `Warning`: a sync writes up to thousands of rows and the
   statements are noise (parameter values are already masked).
 - Migration: `AddHealthSync` (tables `heart_rate_records`, `heart_rate_samples`, `steps_hourly`, `sleep_sessions`,
