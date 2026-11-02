@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Veiller.Api.Auth;
 using Veiller.Api.Circles;
+using Veiller.Api.Consents;
 using Veiller.Api.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,6 +41,7 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }))
 
 app.MapAuthEndpoints();
 app.MapCircleEndpoints();
+app.MapConsentEndpoints();
 
 await app.RunAsync();
 

@@ -11,6 +11,8 @@ public sealed class VeillerDbContext(DbContextOptions<VeillerDbContext> options)
 
     public DbSet<CircleMember> CircleMembers => Set<CircleMember>();
 
+    public DbSet<Consent> Consents => Set<Consent>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(VeillerDbContext).Assembly);
 }
