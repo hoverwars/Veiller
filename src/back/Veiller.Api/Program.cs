@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Veiller.Api.Auth;
+using Veiller.Api.Circles;
 using Veiller.Api.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -38,6 +39,7 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }))
     .WithDescription("Basic endpoint to check that the API is running.");
 
 app.MapAuthEndpoints();
+app.MapCircleEndpoints();
 
 await app.RunAsync();
 
