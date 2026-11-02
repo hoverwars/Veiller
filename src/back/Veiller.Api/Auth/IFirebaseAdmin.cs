@@ -24,6 +24,14 @@ public interface IFirebaseAdmin
 
     Task UpdateDisplayNameAsync(string uid, string displayName, CancellationToken ct);
 
+    /// <exception cref="EmailAlreadyExistsException">The email belongs to another account.</exception>
+    /// <exception cref="UserNotFoundException">No user with this uid.</exception>
+    Task UpdateEmailAsync(string uid, string email, CancellationToken ct);
+
+    /// <exception cref="ArgumentException">The password is rejected by Firebase.</exception>
+    /// <exception cref="UserNotFoundException">No user with this uid.</exception>
+    Task UpdatePasswordAsync(string uid, string password, CancellationToken ct);
+
     /// <exception cref="UserNotFoundException">No user with this uid.</exception>
     Task DeleteUserAsync(string uid, CancellationToken ct);
 

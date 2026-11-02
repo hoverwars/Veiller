@@ -12,8 +12,15 @@ public sealed class CircleConfiguration : IEntityTypeConfiguration<Circle>
         builder.HasKey(c => c.Id);
         builder.Property(c => c.OwnerUserId).HasMaxLength(128).IsRequired();
         builder.Property(c => c.Plan).HasConversion<string>().HasMaxLength(20);
+        builder.Property(c => c.PlanPurchaseToken).HasMaxLength(PurchaseTokenLimits.MaxLength);
         builder.HasIndex(c => c.OwnerUserId).IsUnique();
+        builder.HasIndex(c => c.PlanPurchaseToken).IsUnique();
         builder.HasOne<User>().WithMany().HasForeignKey(c => c.OwnerUserId).OnDelete(DeleteBehavior.Cascade);
         builder.HasMany(c => c.Members).WithOne().HasForeignKey(m => m.CircleId).OnDelete(DeleteBehavior.Cascade);
     }
+}
+
+public static class PurchaseTokenLimits
+{
+    public const int MaxLength = 1024;
 }

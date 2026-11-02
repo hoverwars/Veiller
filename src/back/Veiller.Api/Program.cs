@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
+using Veiller.Api.Alerts;
 using Veiller.Api.Auth;
+using Veiller.Api.Billing;
 using System.Threading.RateLimiting;
 using Veiller.Api.Circles;
 using Veiller.Api.Circles.Invitations;
@@ -9,6 +11,7 @@ using Veiller.Api.Elder;
 using Veiller.Api.Health;
 using Veiller.Api.Patients;
 using Veiller.Api.Profile;
+using Veiller.Api.Retention;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +28,9 @@ builder.Services.AddProblemDetails();
 builder.Services.AddVeillerData(builder.Configuration);
 builder.Services.AddFirebaseAuth(builder.Configuration);
 builder.Services.AddHealthSync();
+builder.Services.AddRetention();
+builder.Services.AddAlerts();
+builder.Services.AddSingleton<IPurchaseVerifier, GooglePlayPurchaseVerifier>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -34,6 +40,12 @@ builder.Services.AddRateLimiter(options =>
         RateLimitPartition.GetFixedWindowLimiter(
             context.User.Uid() ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
             _ => new FixedWindowRateLimiterOptions { PermitLimit = perMinute, Window = TimeSpan.FromMinutes(1) }));
+    // Foreground sync only for now; per authenticated user, generous (the client retries with backoff on 429).
+    var syncPerMinute = builder.Configuration.GetValue("RateLimiting:HealthSyncPerMinute", 30);
+    options.AddPolicy(HealthEndpoints.RateLimitPolicy, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.User.Uid() ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = syncPerMinute, Window = TimeSpan.FromMinutes(1) }));
 });
 
 var app = builder.Build();
@@ -62,9 +74,13 @@ app.MapCircleEndpoints();
 app.MapInvitationEndpoints();
 app.MapConsentEndpoints();
 app.MapProfileEndpoints();
+app.MapCredentialsEndpoints();
 app.MapHealthSyncEndpoints();
 app.MapPatientEndpoints();
 app.MapElderEndpoints();
+app.MapAlertEndpoints();
+app.MapDeviceEndpoints();
+app.MapBillingEndpoints();
 
 await app.RunAsync();
 

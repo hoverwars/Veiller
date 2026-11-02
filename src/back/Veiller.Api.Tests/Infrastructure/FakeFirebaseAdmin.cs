@@ -37,6 +37,30 @@ public sealed class FakeFirebaseAdmin : IFirebaseAdmin
         return Task.CompletedTask;
     }
 
+    /// <summary>When set, UpdateEmailAsync and UpdatePasswordAsync throw it (simulates Firebase being unreachable).</summary>
+    public Exception? CredentialsFailure { get; set; }
+
+    public Dictionary<string, string> Passwords { get; } = [];
+
+    public List<string> RevokedUids { get; } = [];
+
+    public Task UpdateEmailAsync(string uid, string email, CancellationToken ct)
+    {
+        if (CredentialsFailure is not null) throw CredentialsFailure;
+        if (!Users.TryGetValue(uid, out var user)) throw new UserNotFoundException(uid);
+        if (Users.Values.Any(u => u.Uid != uid && u.Email == email)) throw new EmailAlreadyExistsException(email);
+        Users[uid] = user with { Email = email };
+        return Task.CompletedTask;
+    }
+
+    public Task UpdatePasswordAsync(string uid, string password, CancellationToken ct)
+    {
+        if (CredentialsFailure is not null) throw CredentialsFailure;
+        if (!Users.ContainsKey(uid)) throw new UserNotFoundException(uid);
+        Passwords[uid] = password;
+        return Task.CompletedTask;
+    }
+
     /// <summary>When set, DeleteUserAsync throws it (simulates Firebase being unreachable).</summary>
     public Exception? DeleteFailure { get; set; }
 
@@ -47,5 +71,9 @@ public sealed class FakeFirebaseAdmin : IFirebaseAdmin
         return Task.CompletedTask;
     }
 
-    public Task RevokeRefreshTokensAsync(string uid, CancellationToken ct) => Task.CompletedTask;
+    public Task RevokeRefreshTokensAsync(string uid, CancellationToken ct)
+    {
+        RevokedUids.Add(uid);
+        return Task.CompletedTask;
+    }
 }

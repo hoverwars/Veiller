@@ -29,6 +29,12 @@ public sealed class VeillerDbContext(DbContextOptions<VeillerDbContext> options)
 
     public DbSet<HealthSyncStatus> HealthSyncStatuses => Set<HealthSyncStatus>();
 
+    public DbSet<Alert> Alerts => Set<Alert>();
+
+    public DbSet<AlertRule> AlertRules => Set<AlertRule>();
+
+    public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(VeillerDbContext).Assembly);
 }

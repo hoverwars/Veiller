@@ -6,7 +6,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Veiller.Api.Alerts;
 using Veiller.Api.Auth;
+using Veiller.Api.Billing;
 using Veiller.Api.Data;
 
 namespace Veiller.Api.Tests.Infrastructure;
@@ -27,6 +29,10 @@ public sealed class VeillerApiFactory : WebApplicationFactory<Program>
 
     public FakeFirebaseAdmin Admin { get; } = new();
 
+    public FakePushSender Push { get; } = new();
+
+    public FakePurchaseVerifier Purchases { get; } = new();
+
     // An in-memory SQLite database lives as long as its connection: keep one open per factory (isolated per test class).
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
 
@@ -43,6 +49,9 @@ public sealed class VeillerApiFactory : WebApplicationFactory<Program>
         // Required by FirebaseOptions (ValidateOnStart); empty in appsettings.json.
         builder.UseSetting("Firebase:ProjectId", "test-project");
         builder.UseSetting("Firebase:WebApiKey", "test-api-key");
+        // Background jobs are driven explicitly by the tests that cover them.
+        builder.UseSetting("Retention:Enabled", "false");
+        builder.UseSetting("Alerts:WorkerEnabled", "false");
         foreach (var (key, value) in _settings) builder.UseSetting(key, value);
 
         builder.ConfigureServices(services =>
@@ -62,6 +71,10 @@ public sealed class VeillerApiFactory : WebApplicationFactory<Program>
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
             services.AddSingleton<IFirebaseAdmin>(Admin);
             services.AddSingleton<IFirebaseIdentityClient>(Identity);
+            services.RemoveAll<IPushSender>();
+            services.AddSingleton<IPushSender>(Push);
+            services.RemoveAll<IPurchaseVerifier>();
+            services.AddSingleton<IPurchaseVerifier>(Purchases);
         });
     }
 
