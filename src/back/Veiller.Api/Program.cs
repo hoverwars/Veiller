@@ -5,6 +5,7 @@ using Veiller.Api.Circles;
 using Veiller.Api.Circles.Invitations;
 using Veiller.Api.Consents;
 using Veiller.Api.Data;
+using Veiller.Api.Health;
 using Veiller.Api.Profile;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,6 +22,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddProblemDetails();
 builder.Services.AddVeillerData(builder.Configuration);
 builder.Services.AddFirebaseAuth(builder.Configuration);
+builder.Services.AddHealthSync();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -58,6 +60,7 @@ app.MapCircleEndpoints();
 app.MapInvitationEndpoints();
 app.MapConsentEndpoints();
 app.MapProfileEndpoints();
+app.MapHealthSyncEndpoints();
 
 await app.RunAsync();
 

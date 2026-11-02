@@ -3,6 +3,7 @@ using Veiller.Api.Auth;
 using Veiller.Api.Consents;
 using Veiller.Api.Data;
 using Veiller.Api.Data.Entities;
+using Veiller.Api.Health;
 
 namespace Veiller.Api.Profile;
 
@@ -81,7 +82,9 @@ public static class ProfileService
         // Consents belong to the elder (data owner); a caregiver has none of their own.
         var consents = user.Role == Role.Elder ? await ConsentService.GetAsync(db, user.Id, ct) : null;
 
-        return new ProfileExportDto(clock.GetUtcNow(), user.CreatedAt, ToDto(user), consents, exported);
+        var health = user.Role == Role.Elder ? await HealthExport.ExportAsync(db, user.Id, ct) : null;
+
+        return new ProfileExportDto(clock.GetUtcNow(), user.CreatedAt, ToDto(user), consents, exported, health);
     }
 
     private static string? NullIfBlank(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

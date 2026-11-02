@@ -107,6 +107,75 @@ namespace Veiller.Api.Data.Migrations
                     b.ToTable("consents", (string)null);
                 });
 
+            modelBuilder.Entity("Veiller.Api.Data.Entities.HealthSyncStatus", b =>
+                {
+                    b.Property<string>("ElderId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("LastUploadAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("WatchLastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ElderId");
+
+                    b.ToTable("health_sync_status", (string)null);
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.HeartRateRecord", b =>
+                {
+                    b.Property<string>("ElderId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("HcRecordId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("End")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime>("Start")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ElderId", "HcRecordId");
+
+                    b.ToTable("heart_rate_records", (string)null);
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.HeartRateSample", b =>
+                {
+                    b.Property<string>("ElderId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("HcRecordId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("Time")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Bpm")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ElderId", "HcRecordId", "Time");
+
+                    b.HasIndex("ElderId", "Time");
+
+                    b.ToTable("heart_rate_samples", (string)null);
+                });
+
             modelBuilder.Entity("Veiller.Api.Data.Entities.InviteCode", b =>
                 {
                     b.Property<Guid>("CircleId")
@@ -156,6 +225,93 @@ namespace Veiller.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("join_requests", (string)null);
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.SleepSession", b =>
+                {
+                    b.Property<string>("ElderId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("HcRecordId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("End")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime>("Start")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ZoneOffset")
+                        .HasMaxLength(6)
+                        .HasColumnType("character varying(6)");
+
+                    b.HasKey("ElderId", "HcRecordId");
+
+                    b.HasIndex("ElderId", "End");
+
+                    b.ToTable("sleep_sessions", (string)null);
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.SleepStage", b =>
+                {
+                    b.Property<string>("ElderId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("HcRecordId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("End")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("Start")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ElderId", "HcRecordId", "Ordinal");
+
+                    b.ToTable("sleep_stages", (string)null);
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.StepsHour", b =>
+                {
+                    b.Property<string>("ElderId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("Start")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("End")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ElderId", "Start");
+
+                    b.ToTable("steps_hourly", (string)null);
                 });
 
             modelBuilder.Entity("Veiller.Api.Data.Entities.User", b =>
@@ -236,6 +392,33 @@ namespace Veiller.Api.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Veiller.Api.Data.Entities.HealthSyncStatus", b =>
+                {
+                    b.HasOne("Veiller.Api.Data.Entities.User", null)
+                        .WithOne()
+                        .HasForeignKey("Veiller.Api.Data.Entities.HealthSyncStatus", "ElderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.HeartRateRecord", b =>
+                {
+                    b.HasOne("Veiller.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ElderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.HeartRateSample", b =>
+                {
+                    b.HasOne("Veiller.Api.Data.Entities.HeartRateRecord", null)
+                        .WithMany("Samples")
+                        .HasForeignKey("ElderId", "HcRecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Veiller.Api.Data.Entities.InviteCode", b =>
                 {
                     b.HasOne("Veiller.Api.Data.Entities.Circle", null)
@@ -262,9 +445,46 @@ namespace Veiller.Api.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Veiller.Api.Data.Entities.SleepSession", b =>
+                {
+                    b.HasOne("Veiller.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ElderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.SleepStage", b =>
+                {
+                    b.HasOne("Veiller.Api.Data.Entities.SleepSession", null)
+                        .WithMany("Stages")
+                        .HasForeignKey("ElderId", "HcRecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.StepsHour", b =>
+                {
+                    b.HasOne("Veiller.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ElderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Veiller.Api.Data.Entities.Circle", b =>
                 {
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.HeartRateRecord", b =>
+                {
+                    b.Navigation("Samples");
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.SleepSession", b =>
+                {
+                    b.Navigation("Stages");
                 });
 #pragma warning restore 612, 618
         }

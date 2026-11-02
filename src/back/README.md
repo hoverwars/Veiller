@@ -16,7 +16,8 @@ src/back/
 - Migrations appliquées au démarrage de l'API (PostgreSQL uniquement).
 - JSON en camelCase, enums en string, dates en UTC ISO 8601 (`DateTimeOffset`, horloge via `TimeProvider`).
 - Erreurs au format `ProblemDetails`.
-- Tests : base SQLite en mémoire, isolée par `VeillerApiFactory` (`factory.CreateDbScope(out var db)` pour semer ou vérifier des données).
+- Tests : base SQLite en mémoire, isolée par `VeillerApiFactory` (`factory.CreateDbScope(out var db)` pour semer ou vérifier des données). `new VeillerApiFactory(settings)` surcharge des clés de configuration pour une classe de tests (ex. des limites `HealthSync` minuscules).
+- Synchro santé (`Health/`) : limites dans la section `HealthSync` de `appsettings.json`. Les horodatages des tables de santé sont des `DateTime` UTC (agrégats SQL de la dernière mesure). Détails et décisions : `docs/dev/health_sync_backend_notes.md`.
 
 ## Lancer les tests
 
