@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -128,7 +129,7 @@ fun ElderHomeContent(
             CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
             return@VeillerScreen
         }
-        StatusCard(home.lastSendMinutesAgo)
+        StatusCard(home.lastSendMinutesAgo, home.watch.connected)
         Spacer(Modifier.height(12.dp))
         WatchCard(home.watch)
         Spacer(Modifier.height(12.dp))
@@ -137,23 +138,33 @@ fun ElderHomeContent(
 }
 
 @Composable
-private fun StatusCard(lastSendMinutesAgo: Int) {
-    VeillerCard(containerColor = VeillerColors.SuccessContainer, borderColor = VeillerColors.SuccessBorder) {
+private fun StatusCard(lastSendMinutesAgo: Int?, watchConnected: Boolean) {
+    val ok = watchConnected && lastSendMinutesAgo != null
+    val container = if (ok) VeillerColors.SuccessContainer else VeillerColors.WarningContainer
+    val border = if (ok) VeillerColors.SuccessBorder else VeillerColors.WarningBorder
+    val accent = if (ok) VeillerColors.OnSuccessContainer else VeillerColors.OnWarningContainer
+    val title = when {
+        lastSendMinutesAgo == null -> "Aún no hay datos"
+        !watchConnected -> "Revisa tu reloj"
+        else -> "Todo en orden"
+    }
+    val detail = when {
+        lastSendMinutesAgo == null -> "Todavía no se ha enviado ningún dato a tus cuidadores."
+        !watchConnected -> "No recibimos señal de tu reloj.\nÚltimo envío: hace ${Format.ago(lastSendMinutesAgo)}."
+        else -> "Tus cuidadores reciben tus datos.\nÚltimo envío: hace ${Format.ago(lastSendMinutesAgo)}."
+    }
+    VeillerCard(containerColor = container, borderColor = border) {
         Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 Modifier.size(52.dp).clip(CircleShape).background(VeillerColors.Surface),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Check, contentDescription = null, tint = VeillerColors.OnSuccessContainer, modifier = Modifier.size(30.dp))
+                Icon(if (ok) Icons.Filled.Check else Icons.Filled.Warning, contentDescription = null, tint = accent, modifier = Modifier.size(30.dp))
             }
             Spacer(Modifier.height(12.dp))
-            Text("Todo en orden", style = MaterialTheme.typography.headlineSmall, color = VeillerColors.OnSuccessContainer)
+            Text(title, style = MaterialTheme.typography.headlineSmall, color = accent)
             Spacer(Modifier.height(6.dp))
-            Text(
-                "Tus cuidadores reciben tus datos.\nÚltimo envío: hace ${Format.ago(lastSendMinutesAgo)}.",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-            )
+            Text(detail, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
         }
     }
 }
