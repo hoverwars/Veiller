@@ -158,4 +158,17 @@ public sealed class RegisterEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Empty(_factory.Admin.Users);
     }
+
+    [Fact]
+    public async Task Register_when_the_rollback_also_fails_still_returns_a_500_problem()
+    {
+        using (var scope = _factory.CreateDbScope(out var db))
+            await db.Database.ExecuteSqlRawAsync("DROP TABLE users", TestContext.Current.CancellationToken);
+        _factory.Admin.DeleteFailure = new InvalidOperationException("firebase down");
+
+        var response = await PostAsync(Valid());
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
 }

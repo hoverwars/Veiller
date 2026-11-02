@@ -27,8 +27,12 @@ public sealed class FakeFirebaseAdmin : IFirebaseAdmin
         return Task.CompletedTask;
     }
 
+    /// <summary>When set, DeleteUserAsync throws it (simulates Firebase being unreachable).</summary>
+    public Exception? DeleteFailure { get; set; }
+
     public Task DeleteUserAsync(string uid, CancellationToken ct)
     {
+        if (DeleteFailure is not null) throw DeleteFailure;
         Users.Remove(uid);
         return Task.CompletedTask;
     }

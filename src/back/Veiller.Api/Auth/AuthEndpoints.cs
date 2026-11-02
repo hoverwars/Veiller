@@ -83,7 +83,14 @@ public static class AuthEndpoints
         {
             // Do not leave an account without a role behind.
             logger.LogError(ex, "Registration failed after account creation, rolling back {Uid}", created.Uid);
-            await admin.DeleteUserAsync(created.Uid, CancellationToken.None);
+            try
+            {
+                await admin.DeleteUserAsync(created.Uid, CancellationToken.None);
+            }
+            catch (Exception rollbackEx)
+            {
+                logger.LogCritical(rollbackEx, "Rollback failed, orphaned Firebase account {Uid} must be deleted manually", created.Uid);
+            }
             return Results.Problem("Could not complete the registration.", statusCode: StatusCodes.Status500InternalServerError);
         }
     }
