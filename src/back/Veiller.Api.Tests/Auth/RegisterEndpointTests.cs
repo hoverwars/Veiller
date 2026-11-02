@@ -108,6 +108,36 @@ public sealed class RegisterEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task Register_with_a_valid_birth_date_stores_it()
+    {
+        var response = await PostAsync(new
+        {
+            fullName = "Rosa Garcia", email = "rosa@example.com", password = "secret1", role = "elder",
+            birthDate = "1945-03-12",
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using var _ = _factory.CreateDbScope(out var db);
+        Assert.Equal(new DateOnly(1945, 3, 12), (await db.Users.SingleAsync(TestContext.Current.CancellationToken)).BirthDate);
+    }
+
+    [Theory]
+    [InlineData("2999-01-01")]
+    [InlineData("1800-01-01")]
+    [InlineData("not-a-date")]
+    public async Task Register_with_a_bad_birth_date_returns_400(string birthDate)
+    {
+        var response = await PostAsync(new
+        {
+            fullName = "Rosa Garcia", email = "rosa@example.com", password = "secret1", role = "elder", birthDate,
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(0, await CountUsersAsync());
+        Assert.Empty(_factory.Admin.Users);
+    }
+
+    [Fact]
     public async Task Register_with_unknown_role_returns_400()
     {
         var response = await PostAsync(Valid(role: "admin"));

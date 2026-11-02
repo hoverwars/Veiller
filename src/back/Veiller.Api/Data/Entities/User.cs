@@ -18,5 +18,7 @@ public sealed class User
 
     public string? Relation { get; set; }
 
+    public DateOnly? BirthDate { get; set; }
+
     public DateTimeOffset CreatedAt { get; init; }
 }

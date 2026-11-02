@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -47,6 +48,8 @@ public sealed class VeillerApiFactory : WebApplicationFactory<Program>
                          && d.ServiceType.Name.StartsWith("IDbContextOptionsConfiguration")).ToList())
                 services.Remove(d);
             services.AddDbContext<VeillerDbContext>(options => options.UseSqlite(_connection));
+            services.AddAuthentication(TestAuthHandler.SchemeName)
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
             services.AddSingleton<IFirebaseAdmin>(Admin);
             services.AddSingleton<IFirebaseIdentityClient>(Identity);
         });

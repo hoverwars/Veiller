@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Veiller.Api.Circles;
 using Veiller.Api.Data;
 
 namespace Veiller.Api.Auth;
@@ -70,6 +71,7 @@ public static class AuthEndpoints
                 Email = email,
                 FullName = request.FullName.Trim(),
                 Role = request.Role,
+                BirthDate = request.BirthDate,
                 CreatedAt = clock.GetUtcNow(),
             });
             await db.SaveChangesAsync(ct);
@@ -142,10 +144,15 @@ public static class AuthEndpoints
     private static async Task<IResult> CompleteOnboardingAsync(
         ClaimsPrincipal principal,
         IFirebaseAdmin admin,
+        VeillerDbContext db,
+        TimeProvider clock,
         CancellationToken ct)
     {
         var user = await GetCurrentUserAsync(principal, admin, ct);
         if (user is null) return Results.Unauthorized();
+
+        if (ToDto(user).Role == Role.Elder)
+            await CircleService.EnsureOwnCircleAsync(db, user.Uid, clock, ct);
 
         var claims = new Dictionary<string, object>(user.Claims) { [OnboardingClaim] = true };
         await admin.SetCustomClaimsAsync(user.Uid, claims, ct);
@@ -154,19 +161,16 @@ public static class AuthEndpoints
 
     private static async Task<IResult> LogoutAsync(ClaimsPrincipal principal, IFirebaseAdmin admin, CancellationToken ct)
     {
-        var uid = UidOf(principal);
+        var uid = principal.Uid();
         if (uid is null) return Results.Unauthorized();
 
         await admin.RevokeRefreshTokensAsync(uid, ct);
         return Results.NoContent();
     }
 
-    private static string? UidOf(ClaimsPrincipal principal) =>
-        principal.FindFirstValue("user_id") ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
-
     private static async Task<FirebaseUser?> GetCurrentUserAsync(ClaimsPrincipal principal, IFirebaseAdmin admin, CancellationToken ct)
     {
-        var uid = UidOf(principal);
+        var uid = principal.Uid();
         if (uid is null) return null;
 
         try

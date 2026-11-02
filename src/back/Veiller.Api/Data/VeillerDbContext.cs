@@ -7,6 +7,10 @@ public sealed class VeillerDbContext(DbContextOptions<VeillerDbContext> options)
 {
     public DbSet<User> Users => Set<User>();
 
+    public DbSet<Circle> Circles => Set<Circle>();
+
+    public DbSet<CircleMember> CircleMembers => Set<CircleMember>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(VeillerDbContext).Assembly);
 }
