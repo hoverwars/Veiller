@@ -64,6 +64,7 @@ jobs:
           VEILLER_DOMAIN=${{ vars.VEILLER_DOMAIN }}
           FIREBASE_PROJECT_ID=${{ vars.FIREBASE_PROJECT_ID }}
           FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
           EOF
 
       - name: Generate Firebase service account file
