@@ -80,6 +80,33 @@ namespace Veiller.Api.Data.Migrations
                     b.ToTable("circle_members", (string)null);
                 });
 
+            modelBuilder.Entity("Veiller.Api.Data.Entities.Consent", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Type")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("Granted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("GrantedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId", "Type");
+
+                    b.ToTable("consents", (string)null);
+                });
+
             modelBuilder.Entity("Veiller.Api.Data.Entities.User", b =>
                 {
                     b.Property<string>("Id")
@@ -147,6 +174,15 @@ namespace Veiller.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.Consent", b =>
+                {
+                    b.HasOne("Veiller.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Veiller.Api.Data.Entities.Circle", b =>
