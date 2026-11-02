@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Veiller.Api.Auth;
+using Veiller.Api.Circles.Invitations;
 using Veiller.Api.Data;
 using Veiller.Api.Data.Entities;
 
@@ -99,7 +100,7 @@ public static class CircleEndpoints
         var ownerUser = circle.Members.Single(m => m.Role == MemberRole.DataOwner).User!;
 
         return Results.Ok(new CircleDto(
-            circle.Id, owner, CircleService.AgeOf(ownerUser.BirthDate, clock), circle.Plan, members, []));
+            circle.Id, owner, CircleService.AgeOf(ownerUser.BirthDate, clock), circle.Plan, members, await InvitationService.PendingRequestsAsync(db, id, ct)));
     }
 
     private static CircleMemberDto ToDto(CircleMember m) =>

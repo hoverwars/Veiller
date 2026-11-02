@@ -107,6 +107,57 @@ namespace Veiller.Api.Data.Migrations
                     b.ToTable("consents", (string)null);
                 });
 
+            modelBuilder.Entity("Veiller.Api.Data.Entities.InviteCode", b =>
+                {
+                    b.Property<Guid>("CircleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("CircleId");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("invite_codes", (string)null);
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.JoinRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CircleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("CircleId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("join_requests", (string)null);
+                });
+
             modelBuilder.Entity("Veiller.Api.Data.Entities.User", b =>
                 {
                     b.Property<string>("Id")
@@ -183,6 +234,32 @@ namespace Veiller.Api.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.InviteCode", b =>
+                {
+                    b.HasOne("Veiller.Api.Data.Entities.Circle", null)
+                        .WithMany()
+                        .HasForeignKey("CircleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Veiller.Api.Data.Entities.JoinRequest", b =>
+                {
+                    b.HasOne("Veiller.Api.Data.Entities.Circle", null)
+                        .WithMany()
+                        .HasForeignKey("CircleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Veiller.Api.Data.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Veiller.Api.Data.Entities.Circle", b =>

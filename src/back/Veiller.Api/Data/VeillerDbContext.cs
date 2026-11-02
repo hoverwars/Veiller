@@ -13,6 +13,10 @@ public sealed class VeillerDbContext(DbContextOptions<VeillerDbContext> options)
 
     public DbSet<Consent> Consents => Set<Consent>();
 
+    public DbSet<InviteCode> InviteCodes => Set<InviteCode>();
+
+    public DbSet<JoinRequest> JoinRequests => Set<JoinRequest>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(VeillerDbContext).Assembly);
 }
