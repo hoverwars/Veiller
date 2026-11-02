@@ -47,7 +47,7 @@ public static class PatientHistoryService
     {
         if (range == HistoryRange.Day)
         {
-            var minutes = await PatientSummaryService.LastNightMinutesAsync(db, elderId, nowUtc, ct);
+            var minutes = await PatientSummaryService.LastNightMinutesAsync(db, elderId, nowUtc, ct, offset);
             return [new DataPointDto("Anoche", minutes is { } m ? ToHours(m) : null, Utc(buckets[0].StartUtc))];
         }
 

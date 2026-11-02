@@ -65,14 +65,15 @@ public static class PatientSummaryService
     }
 
     /// <summary>The most recent night, if it ended less than a day ago: all sessions of the day the latest one ends on.</summary>
-    public static async Task<int?> LastNightMinutesAsync(VeillerDbContext db, string elderId, DateTime nowUtc, CancellationToken ct)
+    public static async Task<int?> LastNightMinutesAsync(
+        VeillerDbContext db, string elderId, DateTime nowUtc, CancellationToken ct, TimeSpan fallbackOffset = default)
     {
         var sessions = await db.SleepSessions.AsNoTracking().Include(s => s.Stages)
             .Where(s => s.ElderId == elderId && s.End > nowUtc - Freshness && s.End <= nowUtc)
             .ToListAsync(ct);
         if (sessions.Count == 0) return null;
 
-        var lastDay = PatientMetrics.LocalDayOf(sessions.MaxBy(s => s.End)!, TimeSpan.Zero);
-        return sessions.Where(s => PatientMetrics.LocalDayOf(s, TimeSpan.Zero) == lastDay).Sum(PatientMetrics.AsleepMinutes);
+        var lastDay = PatientMetrics.LocalDayOf(sessions.MaxBy(s => s.End)!, fallbackOffset);
+        return sessions.Where(s => PatientMetrics.LocalDayOf(s, fallbackOffset) == lastDay).Sum(PatientMetrics.AsleepMinutes);
     }
 }
