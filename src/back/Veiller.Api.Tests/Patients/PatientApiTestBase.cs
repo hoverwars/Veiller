@@ -13,6 +13,8 @@ public abstract class PatientApiTestBase : HealthApiTestBase
 {
     protected const string Caregiver = "caregiver-1";
 
+    protected PatientApiTestBase(IReadOnlyDictionary<string, string?>? settings = null) : base(settings) { }
+
     protected static DateTimeOffset Now => DateTimeOffset.UtcNow;
 
     /// <summary>An elder owning a circle, with the given caregivers (role Caregiver).</summary>

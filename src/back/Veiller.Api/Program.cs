@@ -5,6 +5,7 @@ using Veiller.Api.Circles;
 using Veiller.Api.Circles.Invitations;
 using Veiller.Api.Consents;
 using Veiller.Api.Data;
+using Veiller.Api.Elder;
 using Veiller.Api.Health;
 using Veiller.Api.Patients;
 using Veiller.Api.Profile;
@@ -63,6 +64,7 @@ app.MapConsentEndpoints();
 app.MapProfileEndpoints();
 app.MapHealthSyncEndpoints();
 app.MapPatientEndpoints();
+app.MapElderEndpoints();
 
 await app.RunAsync();
 

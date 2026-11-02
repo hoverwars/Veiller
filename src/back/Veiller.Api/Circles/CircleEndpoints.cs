@@ -103,6 +103,6 @@ public static class CircleEndpoints
             circle.Id, owner, CircleService.AgeOf(ownerUser.BirthDate, clock), circle.Plan, members, await InvitationService.PendingRequestsAsync(db, id, ct)));
     }
 
-    private static CircleMemberDto ToDto(CircleMember m) =>
+    internal static CircleMemberDto ToDto(CircleMember m) =>
         new(m.UserId, m.User!.FullName, m.Role, m.User.Relation, m.IsSponsor, m.User.Phone);
 }
