@@ -14,6 +14,15 @@ namespace Veiller.Api.Tests.Infrastructure;
 /// <summary>Runs the real API in memory with both Firebase entry points replaced by fakes (no network, no credentials).</summary>
 public sealed class VeillerApiFactory : WebApplicationFactory<Program>
 {
+    private readonly IReadOnlyDictionary<string, string?> _settings;
+
+    public VeillerApiFactory() : this(new Dictionary<string, string?>())
+    {
+    }
+
+    /// <summary>Overrides configuration keys (for example small <c>HealthSync</c> limits) for this factory only.</summary>
+    public VeillerApiFactory(IReadOnlyDictionary<string, string?> settings) => _settings = settings;
+
     public FakeFirebaseIdentityClient Identity { get; } = new();
 
     public FakeFirebaseAdmin Admin { get; } = new();
@@ -34,6 +43,7 @@ public sealed class VeillerApiFactory : WebApplicationFactory<Program>
         // Required by FirebaseOptions (ValidateOnStart); empty in appsettings.json.
         builder.UseSetting("Firebase:ProjectId", "test-project");
         builder.UseSetting("Firebase:WebApiKey", "test-api-key");
+        foreach (var (key, value) in _settings) builder.UseSetting(key, value);
 
         builder.ConfigureServices(services =>
         {

@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Veiller.Api.Auth;
 using Veiller.Api.Consents;
 using Veiller.Api.Data.Entities;
+using Veiller.Api.Health;
 
 namespace Veiller.Api.Profile;
 
@@ -33,10 +34,11 @@ public sealed record ExportedCircleDto(
     PlanTier Plan,
     IReadOnlyList<ExportedMemberDto> Members);
 
-/// <summary>Everything the app stores about the caller (right of access). Health measurements will join it with the ingestion feature.</summary>
+/// <summary>Everything the app stores about the caller (right of access). <c>Health</c> holds the elder's measurements; null for a caregiver.</summary>
 public sealed record ProfileExportDto(
     DateTimeOffset ExportedAt,
     DateTimeOffset CreatedAt,
     ProfileDto Profile,
     IReadOnlyList<ConsentItemDto>? Consents,
-    IReadOnlyList<ExportedCircleDto> Circles);
+    IReadOnlyList<ExportedCircleDto> Circles,
+    HealthExportDto? Health = null);

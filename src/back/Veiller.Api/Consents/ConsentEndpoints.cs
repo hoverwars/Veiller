@@ -52,17 +52,9 @@ public static class ConsentEndpoints
         return Results.Ok(await ConsentService.GetAsync(db, ownerId, ct));
     }
 
-    /// <summary>The uid of the caller when they are an elder, null otherwise (see <see cref="Denied"/>).</summary>
-    private static async Task<string?> RequireElderAsync(ClaimsPrincipal principal, VeillerDbContext db, CancellationToken ct)
-    {
-        var uid = principal.Uid();
-        if (uid is null) return null;
-        var isElder = await db.Users.AnyAsync(u => u.Id == uid && u.Role == Role.Elder, ct);
-        return isElder ? uid : null;
-    }
+    private static Task<string?> RequireElderAsync(ClaimsPrincipal principal, VeillerDbContext db, CancellationToken ct) =>
+        ElderAccess.RequireElderAsync(principal, db, ct);
 
     private static IResult Denied(ClaimsPrincipal principal) =>
-        principal.Uid() is null
-            ? Results.Unauthorized()
-            : Results.Problem("Only the data owner can manage consents.", statusCode: StatusCodes.Status403Forbidden);
+        ElderAccess.Denied(principal, "Only the data owner can manage consents.");
 }
