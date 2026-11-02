@@ -48,7 +48,9 @@ object Format {
 
     fun remaining(duration: Duration): String {
         if (duration.isNegative || duration.isZero) return "Código vencido"
-        return "Vence en ${duration.toHours()} h ${duration.toMinutesPart()} min"
+        // Sin toMinutesPart(): requiere API 31 y minSdk es 26.
+        val minutes = duration.toMinutes()
+        return "Vence en ${minutes / 60} h ${minutes % 60} min"
     }
 }
 
