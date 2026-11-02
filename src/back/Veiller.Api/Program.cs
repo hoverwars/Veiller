@@ -27,7 +27,7 @@ builder.Services.AddRateLimiter(options =>
     var perMinute = builder.Configuration.GetValue("RateLimiting:InvitationsPerMinute", 10);
     options.AddPolicy(InvitationEndpoints.RateLimitPolicy, context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            context.User.FindFirst("user_id")?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            context.User.Uid() ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
             _ => new FixedWindowRateLimiterOptions { PermitLimit = perMinute, Window = TimeSpan.FromMinutes(1) }));
 });
 

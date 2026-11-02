@@ -34,6 +34,7 @@ public static class InvitationService
         for (var attempt = 1; ; attempt++)
         {
             var now = clock.GetUtcNow();
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
             await db.InviteCodes.Where(c => c.CircleId == circleId).ExecuteDeleteAsync(ct);
             var invite = new InviteCode
             {
@@ -46,6 +47,7 @@ public static class InvitationService
             try
             {
                 await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
                 return new InviteCodeDto(invite.Code, invite.ExpiresAt);
             }
             catch (DbUpdateException) when (attempt < MaxGenerationAttempts)
@@ -142,6 +144,8 @@ public static class InvitationService
             db.ChangeTracker.Clear();
             request = await FindRequestAsync(db, actor.CircleId, requestId, ct);
             if (request is null) return ReviewOutcome.NotFound;
+            var count = await db.CircleMembers.CountAsync(m => m.CircleId == actor.CircleId && m.Role != MemberRole.DataOwner, ct);
+            if (count >= PlanLimits.MaxCaregivers(circle.Plan)) return ReviewOutcome.PlanLimitReached;
             await AddMemberAsync(db, clock, request, asAdmin: false, ct);
         }
         return ReviewOutcome.Done;
