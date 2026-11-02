@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using static Veiller.Api.Health.RejectionReason;
 
 namespace Veiller.Api.Health;
@@ -7,7 +6,7 @@ namespace Veiller.Api.Health;
 /// Per-item validation of a sync request. A bad item never fails the request: it is skipped and reported
 /// (position and reason code only, never the value). Pure: no database, no clock besides <c>now</c>.
 /// </summary>
-public static partial class HealthSyncValidator
+public static class HealthSyncValidator
 {
     /// <summary>Items counted against <see cref="HealthSyncOptions.MaxItemsPerRequest"/>: samples + steps buckets + sleep sessions + deleted ids.</summary>
     public static int CountItems(SyncRequest request) =>
@@ -230,15 +229,5 @@ public static partial class HealthSyncValidator
 
     private static string? NullIfBlank(string? value) => IsBlank(value) ? null : value!.Trim();
 
-    /// <summary><c>±HH:MM</c> (ASCII digits only: <c>int.Parse</c> rejects the Unicode ones <c>\d</c> would let through) within the ±18:00 range Health Connect (java.time.ZoneOffset) allows.</summary>
-    private static bool IsValidOffset(string value)
-    {
-        var m = OffsetPattern().Match(value.Trim());
-        if (!m.Success) return false;
-        var minutes = int.Parse(m.Groups[2].Value) * 60 + int.Parse(m.Groups[3].Value);
-        return minutes <= 18 * 60;
-    }
-
-    [GeneratedRegex(@"^([+-])([0-9]{2}):([0-5][0-9])$")]
-    private static partial Regex OffsetPattern();
+    private static bool IsValidOffset(string value) => UtcOffsets.TryParse(value, out _);
 }

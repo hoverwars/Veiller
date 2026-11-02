@@ -18,6 +18,7 @@ src/back/
 - Erreurs au format `ProblemDetails`.
 - Tests : base SQLite en mémoire, isolée par `VeillerApiFactory` (`factory.CreateDbScope(out var db)` pour semer ou vérifier des données). `new VeillerApiFactory(settings)` surcharge des clés de configuration pour une classe de tests (ex. des limites `HealthSync` minuscules).
 - Synchro santé (`Health/`) : limites dans la section `HealthSync` de `appsettings.json`. Les horodatages des tables de santé sont des `DateTime` UTC (agrégats SQL de la dernière mesure). Détails et décisions : `docs/dev/health_sync_backend_notes.md`.
+- Suivi des patients (`Patients/`) : `GET /api/patients`, `/api/patients/{circleId}` et `/history?range=day|week|month&tzOffset=%2B02:00` (cuidadores uniquement, 404 pour les autres). Lecture seule sur les tables de santé ; les champs sans donnée, périmés (> 24 h) ou sans consentement valent `null`.
 
 ## Lancer les tests
 
