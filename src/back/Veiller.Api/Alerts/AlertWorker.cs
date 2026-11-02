@@ -44,12 +44,22 @@ public sealed class AlertWorker(
             .Select(c => new { c.Id, c.OwnerUserId })
             .ToListAsync(ct);
 
+        var logger = services.GetRequiredService<ILogger<AlertWorker>>();
         var opened = 0;
         foreach (var circle in circles)
         {
-            var alerts = await AlertEvaluator.EvaluateAsync(db, clock, settings, circle.Id, circle.OwnerUserId, ct);
-            await notifier.NotifyAsync(alerts, ct);
-            opened += alerts.Count;
+            try
+            {
+                var alerts = await AlertEvaluator.EvaluateAsync(db, clock, settings, circle.Id, circle.OwnerUserId, ct);
+                await notifier.NotifyAsync(alerts, ct);
+                opened += alerts.Count;
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                // One failing circle must not stop the others; the context is cleared so the failed changes are not retried.
+                logger.LogError(e, "Alert evaluation failed for circle {CircleId}", circle.Id);
+                db.ChangeTracker.Clear();
+            }
         }
         return opened;
     }

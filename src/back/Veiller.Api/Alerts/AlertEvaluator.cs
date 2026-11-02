@@ -72,7 +72,16 @@ public static class AlertEvaluator
             }
         }
 
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // A concurrent evaluation (sync and worker) opened the same episode first: its alert is the one that counts.
+            db.ChangeTracker.Clear();
+            return [];
+        }
         return opened;
     }
 

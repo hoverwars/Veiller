@@ -57,6 +57,10 @@ namespace Veiller.Api.Data.Migrations
 
                     b.HasIndex("CircleId", "OpenedAt");
 
+                    b.HasIndex("CircleId", "Type")
+                        .IsUnique()
+                        .HasFilter("\"Active\" = TRUE");
+
                     b.ToTable("alerts", (string)null);
                 });
 

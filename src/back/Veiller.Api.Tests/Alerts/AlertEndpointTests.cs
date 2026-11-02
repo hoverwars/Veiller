@@ -23,7 +23,7 @@ public sealed class AlertEndpointTests : AlertApiTestBase
     private async Task<Guid> SeedAlertAsync(AlertType type = AlertType.HeartRateHigh, AlertStatus status = AlertStatus.New, int minutesAgo = 0, Guid? circle = null)
     {
         using var _ = Factory.CreateDbScope(out var db);
-        var alert = new Alert { CircleId = circle ?? _circle, Type = type, Status = status, OpenedAt = DateTimeOffset.UtcNow.AddMinutes(-minutesAgo), Value = 130 };
+        var alert = new Alert { CircleId = circle ?? _circle, Type = type, Status = status, Active = status != AlertStatus.Resolved, OpenedAt = DateTimeOffset.UtcNow.AddMinutes(-minutesAgo), Value = 130 };
         db.Alerts.Add(alert);
         await db.SaveChangesAsync(Ct);
         return alert.Id;

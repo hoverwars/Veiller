@@ -12,7 +12,7 @@ using Veiller.Api.Data;
 namespace Veiller.Api.Data.Migrations
 {
     [DbContext(typeof(VeillerDbContext))]
-    [Migration("20261102034857_AddAlertsAndPlanPurchase")]
+    [Migration("20261102035308_AddAlertsAndPlanPurchase")]
     partial class AddAlertsAndPlanPurchase
     {
         /// <inheritdoc />
@@ -59,6 +59,10 @@ namespace Veiller.Api.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CircleId", "OpenedAt");
+
+                    b.HasIndex("CircleId", "Type")
+                        .IsUnique()
+                        .HasFilter("\"Active\" = TRUE");
 
                     b.ToTable("alerts", (string)null);
                 });

@@ -94,6 +94,13 @@ namespace Veiller.Api.Data.Migrations
                 columns: new[] { "CircleId", "OpenedAt" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_alerts_CircleId_Type",
+                table: "alerts",
+                columns: new[] { "CircleId", "Type" },
+                unique: true,
+                filter: "\"Active\" = TRUE");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_device_tokens_UserId",
                 table: "device_tokens",
                 column: "UserId");

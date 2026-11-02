@@ -67,6 +67,18 @@ public sealed class AlertEvaluationTests : AlertApiTestBase
     }
 
     [Fact]
+    public async Task The_database_refuses_a_second_active_alert_of_the_same_type()
+    {
+        var circleId = await CircleIdAsync();
+        await SyncRecentBpmAsync(Elder, "hr-1", 130);
+
+        using var _ = Factory.CreateDbScope(out var db);
+        db.Alerts.Add(new Alert { CircleId = circleId, Type = AlertType.HeartRateHigh, Status = AlertStatus.New, OpenedAt = DateTimeOffset.UtcNow });
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(Ct));
+    }
+
+    [Fact]
     public async Task An_alert_resolves_itself_when_the_heart_rate_is_back_to_normal()
     {
         await SyncRecentBpmAsync(Elder, "hr-1", 130);

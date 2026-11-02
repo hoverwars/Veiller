@@ -13,6 +13,8 @@ public sealed class AlertConfiguration : IEntityTypeConfiguration<Alert>
         builder.Property(a => a.Type).HasConversion<string>().HasMaxLength(20);
         builder.Property(a => a.Status).HasConversion<string>().HasMaxLength(10);
         builder.HasIndex(a => new { a.CircleId, a.OpenedAt });
+        // One active episode per type and circle, whatever the number of concurrent evaluations.
+        builder.HasIndex(a => new { a.CircleId, a.Type }).IsUnique().HasFilter("\"Active\" = TRUE");
         builder.HasOne<Circle>().WithMany().HasForeignKey(a => a.CircleId).OnDelete(DeleteBehavior.Cascade);
     }
 }
