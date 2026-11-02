@@ -10,6 +10,14 @@ src/back/
 └── Veiller.Api.Tests/        # tests d'intégration HTTP (xUnit v3)
 ```
 
+## Persistance et conventions
+
+- EF Core + PostgreSQL, code dans `Veiller.Api/Data/` (entités, configurations, migrations). Une feature ajoute ses entités dans `Data/Entities` et sa configuration dans `Data/Configurations`.
+- Migrations appliquées au démarrage de l'API (PostgreSQL uniquement).
+- JSON en camelCase, enums en string, dates en UTC ISO 8601 (`DateTimeOffset`, horloge via `TimeProvider`).
+- Erreurs au format `ProblemDetails`.
+- Tests : base SQLite en mémoire, isolée par `VeillerApiFactory` (`factory.CreateDbScope(out var db)` pour semer ou vérifier des données).
+
 ## Lancer les tests
 
 Prérequis : SDK .NET 10. Aucun credential Firebase ni accès réseau n'est nécessaire.

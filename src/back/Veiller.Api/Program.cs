@@ -1,4 +1,6 @@
+using System.Text.Json.Serialization;
 using Veiller.Api.Auth;
+using Veiller.Api.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,9 +11,15 @@ builder.Services.AddSwaggerGen(options =>
 });
 builder.Services.AddBearerSwagger();
 builder.Services.AddValidation();
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddProblemDetails();
+builder.Services.AddVeillerData(builder.Configuration);
 builder.Services.AddFirebaseAuth(builder.Configuration);
 
 var app = builder.Build();
+
+await app.MigrateDatabaseAsync();
 
 app.UseAuthentication();
 app.UseAuthorization();

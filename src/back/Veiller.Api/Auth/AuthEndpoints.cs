@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Veiller.Api.Data;
 
 namespace Veiller.Api.Auth;
 
@@ -33,6 +34,8 @@ public static class AuthEndpoints
         RegisterRequest request,
         IFirebaseAdmin admin,
         IFirebaseIdentityClient identity,
+        VeillerDbContext db,
+        TimeProvider clock,
         ILogger<FirebaseIdentityClient> logger,
         CancellationToken ct)
     {
@@ -60,6 +63,16 @@ public static class AuthEndpoints
                 [RoleClaim] = ToClaim(request.Role),
                 [OnboardingClaim] = false,
             }, ct);
+
+            db.Users.Add(new Data.Entities.User
+            {
+                Id = created.Uid,
+                Email = email,
+                FullName = request.FullName.Trim(),
+                Role = request.Role,
+                CreatedAt = clock.GetUtcNow(),
+            });
+            await db.SaveChangesAsync(ct);
 
             var tokens = await identity.SignInWithPasswordAsync(email, request.Password, ct);
             var user = new UserDto(created.Uid, created.DisplayName ?? "", email, request.Role, false);
