@@ -22,6 +22,9 @@ public interface IFirebaseAdmin
 
     Task SetCustomClaimsAsync(string uid, IReadOnlyDictionary<string, object> claims, CancellationToken ct);
 
+    Task UpdateDisplayNameAsync(string uid, string displayName, CancellationToken ct);
+
+    /// <exception cref="UserNotFoundException">No user with this uid.</exception>
     Task DeleteUserAsync(string uid, CancellationToken ct);
 
     Task RevokeRefreshTokensAsync(string uid, CancellationToken ct);

@@ -37,7 +37,20 @@ public sealed class FirebaseAdminFacade(FirebaseAuth auth) : IFirebaseAdmin
     public Task SetCustomClaimsAsync(string uid, IReadOnlyDictionary<string, object> claims, CancellationToken ct) =>
         auth.SetCustomUserClaimsAsync(uid, new Dictionary<string, object>(claims), ct);
 
-    public Task DeleteUserAsync(string uid, CancellationToken ct) => auth.DeleteUserAsync(uid, ct);
+    public Task UpdateDisplayNameAsync(string uid, string displayName, CancellationToken ct) =>
+        auth.UpdateUserAsync(new UserRecordArgs { Uid = uid, DisplayName = displayName }, ct);
+
+    public async Task DeleteUserAsync(string uid, CancellationToken ct)
+    {
+        try
+        {
+            await auth.DeleteUserAsync(uid, ct);
+        }
+        catch (FirebaseAuthException ex) when (ex.AuthErrorCode == AuthErrorCode.UserNotFound)
+        {
+            throw new UserNotFoundException(ex.Message);
+        }
+    }
 
     public Task RevokeRefreshTokensAsync(string uid, CancellationToken ct) => auth.RevokeRefreshTokensAsync(uid, ct);
 
