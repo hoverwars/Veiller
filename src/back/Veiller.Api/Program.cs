@@ -5,6 +5,7 @@ using Veiller.Api.Circles;
 using Veiller.Api.Circles.Invitations;
 using Veiller.Api.Consents;
 using Veiller.Api.Data;
+using Veiller.Api.Profile;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,6 +57,7 @@ app.MapAuthEndpoints();
 app.MapCircleEndpoints();
 app.MapInvitationEndpoints();
 app.MapConsentEndpoints();
+app.MapProfileEndpoints();
 
 await app.RunAsync();
 
