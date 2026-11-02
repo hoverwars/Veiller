@@ -3,7 +3,6 @@ package com.veiller.app.data.fake
 import com.veiller.app.core.model.ConsentItem
 import com.veiller.app.core.model.ElderHome
 import com.veiller.app.core.model.HealthDataType
-import com.veiller.app.core.model.WatchStatus
 import com.veiller.app.data.repository.ConsentRepository
 import com.veiller.app.data.repository.ElderRepository
 import kotlinx.coroutines.delay
@@ -29,10 +28,6 @@ class FakeElderRepository(private val circles: FakeCircleRepository) : ElderRepo
     override suspend fun getHome(): ElderHome {
         delay(NETWORK_DELAY_MS)
         val circle = circles.observeCircle(circles.ownCircleId).first()
-        return ElderHome(
-            lastSendMinutesAgo = 8,
-            watch = WatchStatus(connected = true, batteryPercent = 42),
-            caregivers = circle?.caregivers.orEmpty(),
-        )
+        return ElderHome(caregivers = circle?.caregivers.orEmpty())
     }
 }

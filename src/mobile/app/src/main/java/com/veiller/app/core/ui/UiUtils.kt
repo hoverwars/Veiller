@@ -14,7 +14,12 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.veiller.app.VeillerApplication
 import com.veiller.app.di.AppContainer
+import java.text.NumberFormat
 import java.time.Duration
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /** Crea un ViewModel con acceso al AppContainer y a los argumentos de navegación. */
 @Composable
@@ -26,6 +31,10 @@ inline fun <reified VM : ViewModel> veillerViewModel(
 }
 
 object Format {
+    private val AppLocale: Locale = Locale.forLanguageTag("es-CO")
+    private val ClockFormat = DateTimeFormatter.ofPattern("HH:mm", AppLocale)
+    private val DayFormat = DateTimeFormatter.ofPattern("dd/MM", AppLocale)
+
     /** 310 -> "5 h 10" */
     fun sleep(minutes: Int?): String =
         minutes?.let { "${it / 60} h ${(it % 60).toString().padStart(2, '0')}" } ?: "—"
@@ -43,6 +52,30 @@ object Format {
         minutes < 60 * 24 -> "${minutes / 60} h"
         else -> "${minutes / (60 * 24)} d"
     }
+
+    /** Antigüedad de una medición: "hace un momento", "hace 8 min", "hace 8 h". */
+    fun agoSince(at: Instant, now: Instant): String {
+        val minutes = Duration.between(at, now).toMinutes()
+        return if (minutes < 1) "hace un momento" else "hace ${ago(minutes.toInt())}"
+    }
+
+    /** Hora real de una medición: "08:57" si es de hoy, "ayer 23:10" o "30/10 23:10". */
+    fun clockTime(at: Instant, now: Instant, zone: ZoneId): String {
+        val time = at.atZone(zone)
+        val today = now.atZone(zone).toLocalDate()
+        val clock = time.format(ClockFormat)
+        return when (time.toLocalDate()) {
+            today -> clock
+            today.minusDays(1) -> "ayer $clock"
+            else -> "${time.format(DayFormat)} $clock"
+        }
+    }
+
+    /** "08:57 · hace 8 h" */
+    fun measuredAt(at: Instant, now: Instant, zone: ZoneId): String = "${clockTime(at, now, zone)} · ${agoSince(at, now)}"
+
+    /** 8894 -> "8.894" */
+    fun count(value: Long): String = NumberFormat.getIntegerInstance(AppLocale).format(value)
 
     fun caregivers(count: Int): String = if (count == 1) "1 cuidador" else "$count cuidadores"
 

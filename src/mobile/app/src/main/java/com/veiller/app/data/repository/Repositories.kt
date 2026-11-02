@@ -4,6 +4,7 @@ import com.veiller.app.core.model.Circle
 import com.veiller.app.core.model.CirclePreview
 import com.veiller.app.core.model.ConsentItem
 import com.veiller.app.core.model.ElderHome
+import com.veiller.app.core.model.HealthDataType
 import com.veiller.app.core.model.HistoryRange
 import com.veiller.app.core.model.InviteCode
 import com.veiller.app.core.model.PatientHistory
@@ -11,6 +12,8 @@ import com.veiller.app.core.model.PatientSummary
 import com.veiller.app.core.model.Role
 import com.veiller.app.core.model.Session
 import com.veiller.app.core.model.User
+import com.veiller.app.data.health.HealthAvailability
+import com.veiller.app.data.health.HealthSnapshot
 import kotlinx.coroutines.flow.Flow
 
 /*
@@ -56,6 +59,22 @@ interface PatientRepository {
 
 interface ElderRepository {
     suspend fun getHome(): ElderHome
+}
+
+/**
+ * Datos de salud leídos en el teléfono del adulto mayor (Health Connect), no del
+ * backend. Solo se usa con el rol ELDER.
+ */
+interface HealthRepository {
+    fun availability(): HealthAvailability
+
+    /** Permisos de Health Connect que hay que pedir para leer estos tipos. */
+    fun permissionsFor(types: Collection<HealthDataType>): Set<String>
+
+    /** Tipos (de los que se leen por Health Connect) cuyo permiso no está concedido. */
+    suspend fun missingPermissions(types: Collection<HealthDataType>): Set<HealthDataType>
+
+    suspend fun readToday(): HealthSnapshot
 }
 
 class AppError(message: String) : Exception(message)

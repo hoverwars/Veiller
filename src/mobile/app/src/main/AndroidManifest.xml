@@ -3,6 +3,18 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Lectura de Health Connect (F1). Cada permiso debe estar en data/health/HealthPermissions.kt -->
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <!-- Señal de vida del reloj: Mi Fitness escribe calorías activas casi en vivo -->
+    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
+
+    <!-- Para detectar la app de Health Connect en Android 13 o menos -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
+
     <application
         android:name=".VeillerApplication"
         android:allowBackup="true"
@@ -20,6 +32,27 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Justificación de permisos de Health Connect (Android 13 o menos) -->
+        <activity
+            android:name=".feature.health.HealthPermissionsRationaleActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Misma pantalla desde Ajustes > Health Connect > Permisos de apps (Android 14+) -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity=".feature.health.HealthPermissionsRationaleActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- Descarga anticipada del módulo de escaneo QR de Google Play services -->
         <meta-data

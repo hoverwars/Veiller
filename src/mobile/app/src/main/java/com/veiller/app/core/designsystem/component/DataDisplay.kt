@@ -3,6 +3,7 @@ package com.veiller.app.core.designsystem.component
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,9 +26,18 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.veiller.app.core.designsystem.theme.VeillerColors
 
-/** Tarjeta de métrica del detalle de paciente (B2), sin indicadores de estado. */
+/**
+ * Tarjeta de métrica del detalle de paciente (B2), sin indicadores de estado.
+ * [footer] va bajo el valor (p. ej. hora de la medición o un aviso).
+ */
 @Composable
-fun MetricCard(label: String, value: String, modifier: Modifier = Modifier, unit: String? = null) {
+fun MetricCard(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    unit: String? = null,
+    footer: (@Composable ColumnScope.() -> Unit)? = null,
+) {
     VeillerCard(modifier = modifier) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = VeillerColors.TextSecondary)
         Spacer(Modifier.height(6.dp))
@@ -43,6 +53,7 @@ fun MetricCard(label: String, value: String, modifier: Modifier = Modifier, unit
                 )
             }
         }
+        footer?.invoke(this)
     }
 }
 

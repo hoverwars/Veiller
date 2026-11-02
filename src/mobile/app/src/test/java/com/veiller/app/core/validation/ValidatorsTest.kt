@@ -73,4 +73,28 @@ class ConsentRulesTest {
         val items = allGranted.map { if (it.type == HealthDataType.LOCATION) it.copy(granted = false) else it }
         assertFalse(ConsentRules.canAccept(items, disclaimerAccepted = true))
     }
+
+    @Test fun `pasos es obligatorio`() {
+        assertTrue(HealthDataType.STEPS.required)
+        val items = allGranted.map { if (it.type == HealthDataType.STEPS) it.copy(granted = false) else it }
+        assertFalse(ConsentRules.canAccept(items, disclaimerAccepted = true))
+    }
+
+    @Test fun `solo se piden en Health Connect los tipos activados`() {
+        val items = allGranted.map { if (it.type == HealthDataType.SPO2) it.copy(granted = false) else it }
+        assertFalse(HealthDataType.SPO2 in ConsentRules.enabledTypes(items))
+        assertTrue(HealthDataType.STEPS in ConsentRules.enabledTypes(items))
+    }
+
+    @Test fun `un obligatorio sin permiso de Health Connect bloquea y un opcional no`() {
+        val missing = setOf(HealthDataType.STEPS, HealthDataType.SPO2)
+        assertEquals(setOf(HealthDataType.STEPS), ConsentRules.missingRequired(missing))
+        assertTrue(ConsentRules.missingRequired(setOf(HealthDataType.SPO2)).isEmpty())
+    }
+
+    @Test fun `un opcional sin permiso de Health Connect se apaga en el consentimiento`() {
+        val result = ConsentRules.applyHealthGrants(allGranted, missing = setOf(HealthDataType.SPO2, HealthDataType.STEPS))
+        assertFalse(result.first { it.type == HealthDataType.SPO2 }.granted)
+        assertTrue(result.first { it.type == HealthDataType.STEPS }.granted)
+    }
 }

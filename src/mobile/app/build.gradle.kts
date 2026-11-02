@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.retrofit.converter.kotlinx.serialization)
     implementation(libs.zxing.core)
     implementation(libs.play.services.code.scanner)
+    implementation(libs.androidx.health.connect.client)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
