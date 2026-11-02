@@ -38,11 +38,26 @@ object HealthRecordMappers {
     }
 
     /**
-     * Fin del registro más reciente escrito por alguna de las apps de [watchPackages].
-     * [endOf] da el fin de cada tipo (IntervalRecord es interno en la librería).
+     * Fin efectivo más reciente entre los registros de alguna de las apps de [watchPackages].
+     * [endOf] da el fin de cada tipo (IntervalRecord es interno en la librería); [modifiedOf]
+     * existe para los tests, porque el constructor de Metadata con esa hora es interno.
      */
-    fun <T : Record> latestEndFrom(records: List<T>, watchPackages: Set<String>, endOf: (T) -> Instant): Instant? =
-        records.filter { it.metadata.dataOrigin.packageName in watchPackages }.maxOfOrNull(endOf)
+    fun <T : Record> latestEndFrom(
+        records: List<T>,
+        watchPackages: Set<String>,
+        now: Instant,
+        modifiedOf: (T) -> Instant = { it.metadata.lastModifiedTime },
+        endOf: (T) -> Instant,
+    ): Instant? =
+        records
+            .filter { it.metadata.dataOrigin.packageName in watchPackages }
+            .maxOfOrNull { effectiveEnd(endOf(it), modifiedOf(it), now) }
+
+    /**
+     * Mi Fitness escribe bloques (p. ej. calorías de 30 min) con el fin en el futuro: un
+     * registro no puede probar actividad posterior a cuando se escribió, ni posterior a ahora.
+     */
+    fun effectiveEnd(end: Instant, lastModified: Instant, now: Instant): Instant = minOf(end, lastModified, now)
 
     fun latestSleep(records: List<SleepSessionRecord>): SleepReading? =
         records.maxByOrNull { it.endTime }?.let {

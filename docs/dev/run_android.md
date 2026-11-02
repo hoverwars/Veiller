@@ -79,10 +79,12 @@ background sync. Mi Fitness only writes when the watch syncs, so values can be
 minutes or hours old: each metric shows its real measurement time.
 
 "Sin datos recientes del reloj" depends only on the watch liveness signal: the latest
-end time among heart rate, steps and active calories records written by the watch
+effective end among heart rate, steps and active calories records written by the watch
 app (`WATCH_LIVENESS_TYPES`, `WATCH_APP_PACKAGES` and `WATCH_LIVENESS_STALE_AFTER` in
-`data/health/HealthConfig.kt`). The header and the cards use that same rule. An old
-value on its own does not mean the watch is off.
+`data/health/HealthConfig.kt`). The effective end is
+`min(endTime, metadata.lastModifiedTime, now)`: Mi Fitness writes 30-minute calorie
+blocks whose end is still in the future (e.g. 18:30–18:59 written at 18:31). The header
+and the cards use that same rule. An old value on its own does not mean the watch is off.
 
 To test without the watch, insert sample records with Google's Health Connect
 Toolbox app.

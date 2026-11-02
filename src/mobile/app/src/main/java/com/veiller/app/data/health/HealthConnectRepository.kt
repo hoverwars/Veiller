@@ -80,13 +80,15 @@ class HealthConnectRepository(
         val watch = HealthConfig.WATCH_APP_PACKAGES
         return when (type) {
             HealthDataType.HEART_RATE ->
-                HealthRecordMappers.latestEndFrom(gateway.latestRecords(HeartRateRecord::class, start, now), watch) { it.endTime }
+                HealthRecordMappers.latestEndFrom(gateway.latestRecords(HeartRateRecord::class, start, now), watch, now) { it.endTime }
             HealthDataType.STEPS ->
-                HealthRecordMappers.latestEndFrom(gateway.latestRecords(StepsRecord::class, start, now), watch) { it.endTime }
+                HealthRecordMappers.latestEndFrom(gateway.latestRecords(StepsRecord::class, start, now), watch, now) { it.endTime }
             HealthDataType.ACTIVE_CALORIES ->
-                HealthRecordMappers.latestEndFrom(gateway.latestRecords(ActiveCaloriesBurnedRecord::class, start, now), watch) { it.endTime }
+                HealthRecordMappers.latestEndFrom(
+                    gateway.latestRecords(ActiveCaloriesBurnedRecord::class, start, now), watch, now,
+                ) { it.endTime }
             HealthDataType.SLEEP ->
-                HealthRecordMappers.latestEndFrom(gateway.latestRecords(SleepSessionRecord::class, start, now), watch) { it.endTime }
+                HealthRecordMappers.latestEndFrom(gateway.latestRecords(SleepSessionRecord::class, start, now), watch, now) { it.endTime }
             HealthDataType.LOCATION,
             HealthDataType.SCREEN_TIME,
             HealthDataType.BLOOD_PRESSURE,

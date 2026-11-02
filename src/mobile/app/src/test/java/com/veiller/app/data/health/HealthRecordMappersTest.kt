@@ -3,6 +3,7 @@ package com.veiller.app.data.health
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.metadata.DataOrigin
@@ -41,23 +42,45 @@ class HealthRecordMappersTest {
     private fun calories(start: Instant, end: Instant) =
         ActiveCaloriesBurnedRecord(start, offset, end, offset, Energy.kilocalories(12.0), Metadata.manualEntry())
 
+    /** Escrito justo al terminar: la última modificación no recorta el fin. */
+    private val writtenAtEnd: (Record) -> Instant = { Instant.MAX }
+
     @Test fun `señal de vida toma el fin más reciente entre tipos de la app del reloj`() {
+        val now = t0.plus(Duration.ofHours(1))
         val stepsRecord = steps(t0, t0.plus(Duration.ofMinutes(15)))
         val caloriesRecord = calories(t0, t0.plus(Duration.ofMinutes(30)))
         val watch = setOf(caloriesRecord.metadata.dataOrigin.packageName)
-        val latestSteps = HealthRecordMappers.latestEndFrom(listOf(stepsRecord), watch) { it.endTime }
-        val latestCalories = HealthRecordMappers.latestEndFrom(listOf(caloriesRecord), watch) { it.endTime }
+        val latestSteps = HealthRecordMappers.latestEndFrom(listOf(stepsRecord), watch, now, writtenAtEnd) { it.endTime }
+        val latestCalories = HealthRecordMappers.latestEndFrom(listOf(caloriesRecord), watch, now, writtenAtEnd) { it.endTime }
         assertEquals(t0.plus(Duration.ofMinutes(15)), latestSteps)
         assertEquals(t0.plus(Duration.ofMinutes(30)), latestCalories)
     }
 
+    @Test fun `bloque de calorías con fin futuro cuenta hasta su última modificación`() {
+        // Mi Fitness: bloque 18:30–18:59 escrito a las 18:31, leído a las 18:40.
+        val start = Instant.parse("2026-11-01T23:30:00Z")
+        val written = start.plus(Duration.ofMinutes(1))
+        val now = start.plus(Duration.ofMinutes(10))
+        val record = calories(start, start.plus(Duration.ofMinutes(29)))
+        val watch = setOf(record.metadata.dataOrigin.packageName)
+        assertEquals(written, HealthRecordMappers.latestEndFrom(listOf(record), watch, now, { written }) { it.endTime })
+    }
+
+    @Test fun `fin efectivo nunca pasa de ahora`() {
+        val now = t0
+        assertEquals(now, HealthRecordMappers.effectiveEnd(now.plusSeconds(600), now.plusSeconds(300), now))
+        assertEquals(now.minusSeconds(60), HealthRecordMappers.effectiveEnd(now.minusSeconds(60), now, now))
+    }
+
     @Test fun `señal de vida ignora registros de otras apps`() {
         val records = listOf(calories(t0, t0.plus(Duration.ofMinutes(30))))
-        assertNull(HealthRecordMappers.latestEndFrom(records, setOf("com.example.otra")) { it.endTime })
+        assertNull(HealthRecordMappers.latestEndFrom(records, setOf("com.example.otra"), t0, writtenAtEnd) { it.endTime })
     }
 
     @Test fun `señal de vida sin registros es null`() {
-        assertNull(HealthRecordMappers.latestEndFrom(emptyList<StepsRecord>(), setOf("com.example.reloj")) { it.endTime })
+        assertNull(
+            HealthRecordMappers.latestEndFrom(emptyList<StepsRecord>(), setOf("com.example.reloj"), t0, writtenAtEnd) { it.endTime },
+        )
     }
 
     @Test fun `estado del SDK`() {

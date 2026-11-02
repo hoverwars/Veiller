@@ -24,15 +24,16 @@ object HealthConfig {
     /** Una sesión de sueño que terminó hace más que esto no es la de la última noche. */
     val SLEEP_STALE_AFTER: Duration = Duration.ofHours(36)
 
-    /** Paquete de Mi Fitness, la app del Redmi Watch 5 Lite. */
+    /** Paquete de Mi Fitness, la app del Redmi Watch 5 Lite (verificado con Mi Fitness 3.59.2i). */
     const val MI_FITNESS_PACKAGE = "com.xiaomi.wearable"
 
     /** Apps de reloj cuyos registros cuentan como señal de vida (dataOrigin.packageName). */
     val WATCH_APP_PACKAGES: Set<String> = setOf(MI_FITNESS_PACKAGE)
 
     /**
-     * Señal de vida del reloj: el fin del registro más reciente de estos tipos escrito por
-     * una app de [WATCH_APP_PACKAGES]. Decide "Sin datos recientes del reloj".
+     * Señal de vida del reloj: el fin efectivo más reciente de los registros de estos tipos
+     * escritos por una app de [WATCH_APP_PACKAGES], es decir min(fin, última modificación,
+     * ahora). Decide "Sin datos recientes del reloj".
      */
     val WATCH_LIVENESS_TYPES: Set<HealthDataType> =
         setOf(HealthDataType.HEART_RATE, HealthDataType.STEPS, HealthDataType.ACTIVE_CALORIES)
