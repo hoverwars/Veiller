@@ -27,8 +27,8 @@ public abstract class PatientApiTestBase : HealthApiTestBase
         var now = DateTimeOffset.UtcNow;
         var circle = new Circle { OwnerUserId = elderId, CreatedAt = now };
         circle.Members.Add(new CircleMember { CircleId = circle.Id, UserId = elderId, Role = MemberRole.DataOwner, JoinedAt = now });
-        foreach (var uid in caregivers)
-            circle.Members.Add(new CircleMember { CircleId = circle.Id, UserId = uid, Role = MemberRole.Caregiver, JoinedAt = now.AddMinutes(1) });
+        for (var i = 0; i < caregivers.Length; i++)
+            circle.Members.Add(new CircleMember { CircleId = circle.Id, UserId = caregivers[i], Role = MemberRole.Caregiver, JoinedAt = now.AddMinutes(1 + i) });
         db.Circles.Add(circle);
         await db.SaveChangesAsync(Ct);
         return circle.Id;

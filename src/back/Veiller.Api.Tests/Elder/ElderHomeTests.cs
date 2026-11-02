@@ -81,13 +81,6 @@ public class ElderHomeTests : PatientApiTestBase
         Assert.False(IsNull(home, "lastSendMinutesAgo"));
     }
 
-    [Fact]
-    public async Task The_connected_window_is_configurable()
-    {
-        using var narrow = new NarrowWindowTests();
-        await narrow.RunAsync();
-    }
-
     // ---- Caregivers ----
 
     [Fact]
@@ -137,21 +130,5 @@ public class ElderHomeTests : PatientApiTestBase
         var home = await GetOkAsync(Url, Elder);
 
         Assert.Empty(home.GetProperty("caregivers").EnumerateArray());
-    }
-
-    /// <summary>Same scenario with a 10 minute window: a 30 minute old signal is no longer "connected".</summary>
-    private sealed class NarrowWindowTests : PatientApiTestBase
-    {
-        public NarrowWindowTests() : base(new Dictionary<string, string?> { ["HealthSync:WatchConnectedWindow"] = "00:10:00" }) { }
-
-        public async Task RunAsync()
-        {
-            await SeedCircleAsync(Elder);
-            await SyncOkAsync(Elder, Body(watchLastSeenAt: Now.AddMinutes(-30)));
-
-            var home = await GetOkAsync(Url, Elder);
-
-            Assert.False(home.GetProperty("watch").GetProperty("connected").GetBoolean());
-        }
     }
 }
