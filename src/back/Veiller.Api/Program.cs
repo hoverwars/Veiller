@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
 using Veiller.Api.Auth;
+using System.Threading.RateLimiting;
 using Veiller.Api.Circles;
+using Veiller.Api.Circles.Invitations;
 using Veiller.Api.Consents;
 using Veiller.Api.Data;
 
@@ -18,6 +20,16 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddProblemDetails();
 builder.Services.AddVeillerData(builder.Configuration);
 builder.Services.AddFirebaseAuth(builder.Configuration);
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // Slows down brute force on invitation codes: per authenticated user (per IP when anonymous).
+    var perMinute = builder.Configuration.GetValue("RateLimiting:InvitationsPerMinute", 10);
+    options.AddPolicy(InvitationEndpoints.RateLimitPolicy, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.User.Uid() ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = perMinute, Window = TimeSpan.FromMinutes(1) }));
+});
 
 var app = builder.Build();
 
@@ -25,6 +37,7 @@ await app.MigrateDatabaseAsync();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.UseSwagger();
 app.UseSwaggerUI(options =>
@@ -41,6 +54,7 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }))
 
 app.MapAuthEndpoints();
 app.MapCircleEndpoints();
+app.MapInvitationEndpoints();
 app.MapConsentEndpoints();
 
 await app.RunAsync();
