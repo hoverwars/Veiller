@@ -230,7 +230,7 @@ public static partial class HealthSyncValidator
 
     private static string? NullIfBlank(string? value) => IsBlank(value) ? null : value!.Trim();
 
-    /// <summary><c>±HH:MM</c> within the ±18:00 range Health Connect (java.time.ZoneOffset) allows.</summary>
+    /// <summary><c>±HH:MM</c> (ASCII digits only: <c>int.Parse</c> rejects the Unicode ones <c>\d</c> would let through) within the ±18:00 range Health Connect (java.time.ZoneOffset) allows.</summary>
     private static bool IsValidOffset(string value)
     {
         var m = OffsetPattern().Match(value.Trim());
@@ -239,6 +239,6 @@ public static partial class HealthSyncValidator
         return minutes <= 18 * 60;
     }
 
-    [GeneratedRegex(@"^([+-])(\d{2}):([0-5]\d)$")]
+    [GeneratedRegex(@"^([+-])([0-9]{2}):([0-5][0-9])$")]
     private static partial Regex OffsetPattern();
 }

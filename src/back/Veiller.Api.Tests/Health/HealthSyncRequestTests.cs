@@ -136,6 +136,8 @@ public sealed class HealthSyncRequestTests : HealthApiTestBase
     [InlineData("""{"schemaVersion":1,"heartRateRecords":[{"hcRecordId":5,"origin":"x"}]}""")]
     [InlineData("""{"schemaVersion":1,"heartRateRecords":[{"hcRecordId":"a","samples":[{"time":"2026-11-01T14:00:00Z","bpm":72.5}]}]}""")]
     [InlineData("""{"schemaVersion":1,"watchLastSeenAt":"soon"}""")]
+    [InlineData("""{"schemaVersion":1,"watchLastSeenAt":"2026-11-01T14:00:00"}""")]      // no Z / offset: would depend on the server zone
+    [InlineData("""{"schemaVersion":1,"watchLastSeenAt":"2026-11-01"}""")]
     [InlineData("""{"schemaVersion":1,"deleted":{"heartRateRecords":"abc"}}""")]
     public async Task Malformed_json_or_wrong_types_is_400_and_stores_nothing(string json)
     {

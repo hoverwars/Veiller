@@ -271,6 +271,7 @@ public sealed class HealthSyncRejectionTests : HealthApiTestBase
     [InlineData("zoneOffset", "+5:00", "INVALID_FORMAT")]
     [InlineData("zoneOffset", "+19:00", "INVALID_FORMAT")]
     [InlineData("zoneOffset", "-05:60", "INVALID_FORMAT")]
+    [InlineData("zoneOffset", "+٠٥:00", "INVALID_FORMAT")]   // Arabic-Indic digits: int.Parse would throw (500)
     public async Task Sleep_session_with_a_bad_field_is_rejected(string member, string? value, string reason)
     {
         var good = Session("ok", T0, T0.AddHours(7));
