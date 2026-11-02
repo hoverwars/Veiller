@@ -131,7 +131,8 @@ data class WatchStatus(
 )
 
 data class ElderHome(
-    val lastSendMinutesAgo: Int,
+    /** Minutes since the last upload; null when nothing was ever sent. */
+    val lastSendMinutesAgo: Int?,
     val watch: WatchStatus,
     val caregivers: List<CircleMember>,
 )
