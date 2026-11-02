@@ -19,6 +19,7 @@ src/back/
 - Tests : base SQLite en mémoire, isolée par `VeillerApiFactory` (`factory.CreateDbScope(out var db)` pour semer ou vérifier des données). `new VeillerApiFactory(settings)` surcharge des clés de configuration pour une classe de tests (ex. des limites `HealthSync` minuscules).
 - Synchro santé (`Health/`) : limites dans la section `HealthSync` de `appsettings.json`. Les horodatages des tables de santé sont des `DateTime` UTC (agrégats SQL de la dernière mesure). Détails et décisions : `docs/dev/health_sync_backend_notes.md`.
 - Suivi des patients (`Patients/`) : `GET /api/patients`, `/api/patients/{circleId}` et `/history?range=day|week|month&tzOffset=%2B02:00` (cuidadores uniquement, 404 pour les autres). Lecture seule sur les tables de santé ; les champs sans donnée, périmés (> 24 h) ou sans consentement valent `null`.
+- Accueil de l'adulto mayor (`Elder/`) : `GET /api/elder/home` (elder uniquement, 403 sinon) : `lastSendMinutesAgo` (`null` si jamais synchronisé), `watch.connected` (`watchLastSeenAt` plus récent que `HealthSync:WatchConnectedWindow`, 6 h par défaut), `watch.batteryPercent` (toujours `null`, non ingérée) et les cuidadores de son cercle (admin inclus, titulaire exclu).
 
 ## Lancer les tests
 

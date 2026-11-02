@@ -17,6 +17,9 @@ public sealed class HealthSyncOptions
 
     /// <summary>How far past server time a timestamp may be (phones have imperfect clocks).</summary>
     public TimeSpan FutureTolerance { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>How recent <c>watchLastSeenAt</c> must be for the elder home to show the watch as connected.</summary>
+    public TimeSpan WatchConnectedWindow { get; set; } = TimeSpan.FromHours(6);
 }
 
 /// <summary>Field limits that are part of the storage schema, hence of the contract.</summary>
