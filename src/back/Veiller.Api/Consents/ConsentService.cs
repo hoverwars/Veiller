@@ -22,6 +22,23 @@ public static class ConsentService
     public static async Task<List<ConsentItemDto>> ReplaceAsync(
         VeillerDbContext db, TimeProvider clock, string ownerId, IReadOnlyList<ConsentItemRequest> items, CancellationToken ct)
     {
+        try
+        {
+            await ApplyAsync(db, clock, ownerId, items, ct);
+        }
+        catch (DbUpdateException)
+        {
+            // A concurrent first save may have inserted the same rows: replay once against fresh data (the PUT is idempotent).
+            db.ChangeTracker.Clear();
+            await ApplyAsync(db, clock, ownerId, items, ct);
+        }
+
+        return await GetAsync(db, ownerId, ct);
+    }
+
+    private static async Task ApplyAsync(
+        VeillerDbContext db, TimeProvider clock, string ownerId, IReadOnlyList<ConsentItemRequest> items, CancellationToken ct)
+    {
         var now = clock.GetUtcNow();
         var existing = await db.Consents.Where(c => c.UserId == ownerId).ToDictionaryAsync(c => c.Type, ct);
 
@@ -55,6 +72,5 @@ public static class ConsentService
         }
 
         await db.SaveChangesAsync(ct);
-        return await GetAsync(db, ownerId, ct);
     }
 }
