@@ -5,6 +5,7 @@ import com.veiller.app.core.model.CircleMember
 import com.veiller.app.core.model.CirclePreview
 import com.veiller.app.core.model.InviteCode
 import com.veiller.app.core.model.MemberRole
+import com.veiller.app.core.model.User
 import com.veiller.app.core.validation.CircleCode
 import com.veiller.app.data.repository.AppError
 import com.veiller.app.data.repository.CircleRepository
@@ -17,7 +18,9 @@ import kotlinx.coroutines.flow.update
 import java.time.Duration
 import java.time.Instant
 
-class FakeCircleRepository : CircleRepository {
+class FakeCircleRepository(
+    private val currentUser: suspend () -> User? = { null },
+) : CircleRepository {
 
     private val _circles = MutableStateFlow(FakeData.circles.associateBy { it.id })
     val circles: StateFlow<Map<String, Circle>> = _circles
@@ -57,8 +60,23 @@ class FakeCircleRepository : CircleRepository {
         )
     }
 
-    override suspend fun requestToJoin(code: String): Result<Unit> =
-        findByCode(code).map { }
+    /**
+     * Simula que el dueño del círculo (Rosa) acepta la solicitud: el usuario con sesión
+     * queda como cuidador del círculo. Se ignora el límite del plan (solo mock).
+     */
+    override suspend fun requestToJoin(code: String): Result<Unit> {
+        val circleId = codes[CircleCode.format(code)]
+            ?: return Result.failure(AppError("No encontramos un círculo con ese código."))
+        val user = currentUser()
+        if (user != null) {
+            delay(NETWORK_DELAY_MS)
+            updateCircle(circleId) { c ->
+                if (c.members.any { it.userId == user.id }) c
+                else c.copy(members = c.members + CircleMember(user.id, user.fullName, MemberRole.CAREGIVER))
+            }
+        }
+        return Result.success(Unit)
+    }
 
     override suspend fun approveRequest(circleId: String, requestId: String): Result<Unit> {
         delay(NETWORK_DELAY_MS)
